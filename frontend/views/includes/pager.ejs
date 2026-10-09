@@ -1,0 +1,12 @@
+<%# params: page, pages, href(pageNumber) %>
+<% if (pages > 1) {
+  const nums = [];
+  for (let i = 1; i <= pages; i++) if (i === 1 || i === pages || Math.abs(i - page) <= 1) nums.push(i);
+  const out = []; nums.forEach((n, i) => { if (i && n - nums[i - 1] > 1) out.push("gap"); out.push(n); });
+%>
+<nav class="pager" aria-label="Pagination">
+  <% if (page > 1) { %><a href="<%= href(page - 1) %>" aria-label="Previous page"><%- icon("chevron-left") %></a><% } %>
+  <% out.forEach(n => { if (n === "gap") { %><span class="is-gap">…</span><% } else if (n === page) { %><span class="is-active" aria-current="page"><%= n %></span><% } else { %><a href="<%= href(n) %>"><%= n %></a><% } }) %>
+  <% if (page < pages) { %><a href="<%= href(page + 1) %>" aria-label="Next page"><%- icon("chevron-right") %></a><% } %>
+</nav>
+<% } %>

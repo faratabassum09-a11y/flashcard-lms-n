@@ -1,0 +1,91 @@
+<% layout('layouts/boilerplate') %>
+<%
+  const url = (n) => "/admin/students?" + new URLSearchParams(Object.assign({}, q ? { q } : {}, section ? { section } : {}, n > 1 ? { page: n } : {})).toString();
+  const secUrl = (sec) => "/admin/students" + (sec || q ? "?" + new URLSearchParams(Object.assign({}, sec ? { section: sec } : {}, q ? { q } : {})).toString() : "");
+  const here = url(page);
+%>
+<div class="page-head">
+  <div><h1>Students</h1><p><%= grand %> account<%= grand === 1 ? "" : "s" %> · <%= sections.list.length %> section<%= sections.list.length === 1 ? "" : "s" %> · <%= testCount %> test<%= testCount === 1 ? "" : "s" %> created<% if (section) { %> · showing <b><%= section === "__none" ? "students without a section" : "section " + section %></b> (<%= total %>)<% } %></p></div>
+  <div class="actions"><button class="btn" type="button" data-open="#secDlg"><%- icon("grid") %>New section</button><button class="btn" type="button" data-open="#addDlg"><%- icon("plus") %>Add one</button><button class="btn btn-primary" type="button" data-open="#uploadDlg"><%- icon("upload") %>Bulk upload</button></div>
+</div>
+
+<form class="toolbar mb" method="GET" action="/admin/students" role="search">
+  <select class="select" name="section" data-autosubmit aria-label="Section" style="min-width:230px;font-weight:650">
+    <option value="" <%= !section ? "selected" : "" %>>All students (<%= sections.total %>)</option>
+    <% sections.list.forEach(sc => { %><option value="<%= sc.section %>" <%= section === sc.section ? "selected" : "" %>>Section <%= sc.section %> (<%= sc.count %>)</option><% }) %>
+    <% if (sections.unassigned) { %><option value="__none" <%= section === "__none" ? "selected" : "" %>>No section (<%= sections.unassigned %>)</option><% } %>
+  </select>
+  <div class="input-icon"><%- icon("search") %><input class="input" type="search" name="q" value="<%= q %>" placeholder="Search roll number or name   ( / )" data-search></div>
+  <button class="btn" type="submit">Search</button><% if (q || section) { %><a class="btn btn-ghost" href="/admin/students">Clear</a><% } %>
+  <% const cur = sections.list.find(x => x.section === section); if (cur && cur.count === 0) { %>
+    <button class="btn btn-ghost" type="submit" form="delSection" style="color:var(--bad)" data-confirm="Section <%= section %> is empty and will be removed from the list." data-confirm-title="Delete section?" data-confirm-ok="Delete"><%- icon("trash") %>Delete section <%= section %></button>
+  <% } %>
+</form>
+<form id="delSection" action="/admin/sections/delete" method="POST"><input type="hidden" name="section" value="<%= section %>"></form>
+
+<div class="card card-flush">
+  <% if (!users.length) { %>
+    <div class="empty"><span class="dot-icon"><%- icon("users") %></span><h3><%= q ? "No students match" : section ? "Nobody in this section yet" : "No students yet" %></h3><p><%= q ? "Try a different search." : section ? "Add students with the section box, or tick students in “All students” and use Move to section." : "Upload an Excel sheet with username and password columns to create accounts in bulk." %></p><% if (!q && !section) { %><button class="btn btn-primary btn-sm" type="button" data-open="#uploadDlg">Upload students</button><% } %></div>
+  <% } else { %>
+    <form id="bulkForm" action="/admin/students/assign-section" method="POST"><input type="hidden" name="back" value="<%= here %>"></form>
+    <div class="table-wrap"><table class="t">
+      <thead><tr><th style="width:38px"><input type="checkbox" id="selAll" aria-label="Select all on this page"></th><th>Student</th><th>Section</th><th class="num">Tests</th><th>Average (out of 20)</th><th>Joined</th><th></th></tr></thead>
+      <tbody>
+        <% users.forEach(u => { %>
+          <tr>
+            <td><input type="checkbox" name="ids" value="<%= u._id %>" form="bulkForm" class="rowSel" aria-label="Select <%= u.username %>"></td>
+            <td><a href="/admin/students/<%= u._id %>" class="row" style="flex-wrap:nowrap;color:inherit"><span class="avatar avatar-sm"><%= fmt.initials(u.displayName || u.username) %></span><span><b><%= u.username %></b><% if (u.displayName) { %><span class="muted small" style="display:block"><%= u.displayName %></span><% } %></span></a></td>
+            <td><% if (u.section) { %><a class="badge badge-sec" href="<%= secUrl(u.section) %>">Sec <%= u.section %></a><% } else { %><span class="muted">—</span><% } %></td>
+            <td class="num"><%= u.tests %></td>
+            <td><% if (u.avg === null) { %><span class="muted">—</span><% } else { %><div class="row" style="flex-wrap:nowrap;min-width:150px"><div class="bar <%= u.avg >= 75 ? 'ok' : u.avg >= 50 ? 'warn' : 'bad' %> grow" style="--v:<%= u.avg %>%"><i></i></div><b class="tnum"><%= fmt.num(u.avg20) %> <small class="muted">/ 20</small></b></div><% } %></td>
+            <td class="muted nowrap"><%= fmt.date(u.createdAt) %></td>
+            <td class="actions">
+              <a class="btn btn-sm btn-ghost" href="/admin/students/<%= u._id %>">Open</a>
+              <form class="inline-form" action="/admin/students/<%= u._id %>?_method=DELETE" method="POST" data-confirm="Deletes <%= u.username %> and all of their results. This cannot be undone." data-confirm-title="Delete student?" data-confirm-ok="Delete"><button class="btn btn-sm btn-ghost btn-icon" style="color:var(--bad)" aria-label="Delete <%= u.username %>"><%- icon("trash") %></button></form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table></div>
+    <div class="savebar" id="bulkBar" hidden>
+      <span><b id="selCount">0</b> selected</span>
+      <span class="row"><input class="input input-sm" form="bulkForm" name="section" list="secList" maxlength="20" placeholder="Section e.g. A" style="width:150px" aria-label="Section to move the selected students to"><button class="btn btn-primary btn-sm" form="bulkForm" type="submit">Move to section</button></span>
+    </div>
+  <% } %>
+</div>
+<datalist id="secList"><% sections.list.forEach(sc => { %><option value="<%= sc.section %>"><% }) %></datalist>
+<%- include("includes/pager", { page, pages, href: url }) %>
+
+<dialog class="modal" id="secDlg"><form action="/admin/sections" method="POST">
+  <div class="modal-body"><h3>New section</h3>
+    <p>Create the section first — it appears in the list above and in “Create a test”. Then move or upload students into it.</p>
+    <div class="field"><label for="sn">Section name</label><input class="input" id="sn" name="names" required maxlength="80" autocomplete="off" placeholder="e.g. A  (or several: A, B, C)"><span class="hint">Separate with commas to create several at once.</span></div></div>
+  <div class="modal-foot"><button class="btn btn-ghost" type="button" data-close>Cancel</button><button class="btn btn-primary" type="submit">Create</button></div></form></dialog>
+
+<dialog class="modal" id="addDlg"><form action="/admin/students" method="POST">
+  <div class="modal-body"><h3>Add a student</h3>
+    <div class="field"><label for="nu">Roll number / username</label><input class="input" id="nu" name="username" required maxlength="40" autocomplete="off" placeholder="No spaces"></div>
+    <div class="field"><label for="np">Temporary password</label><input class="input" id="np" name="password" required minlength="6" autocomplete="off" placeholder="At least 6 characters"></div>
+    <div class="field"><label for="ns">Section <span class="muted">(optional)</span></label><input class="input" id="ns" name="section" list="secList" maxlength="20" autocomplete="off" value="<%= section && section !== '__none' ? section : '' %>" placeholder="e.g. A, B, CSE-C"></div></div>
+  <div class="modal-foot"><button class="btn btn-ghost" type="button" data-close>Cancel</button><button class="btn btn-primary" type="submit">Add student</button></div></form></dialog>
+
+<dialog class="modal modal-wide" id="uploadDlg"><form action="/upload-users" method="POST" enctype="multipart/form-data">
+  <div class="modal-body"><h3>Upload students</h3>
+    <p>Select <b>one or many</b> Excel, CSV or PDF files. Each needs <code>username</code> and <code>password</code> columns (roll no. also works) and can have a <code>section</code> column. Existing usernames are skipped.</p>
+    <div class="field"><label for="us2">Section for everyone in these files <span class="muted">(optional)</span></label><input class="input" id="us2" name="section" list="secList" maxlength="20" autocomplete="off" placeholder="e.g. A — used when the file has no section column"><span class="hint">Tip: upload one file per section, or add a <code>section</code> column to a single file.</span></div>
+    <label class="dropzone"><%- icon("upload") %><span><b>Choose files</b> or drop them here</span><span class="muted xs" data-file-name data-default=".xlsx · .xls · .csv · .pdf — up to 20 files, 10 MB each">.xlsx · .xls · .csv · .pdf — up to 20 files, 10 MB each</span><input type="file" name="files" accept=".xlsx,.xls,.csv,.pdf" multiple required></label>
+    <details class="fold small"><summary>PDF format</summary>
+      <p class="muted">Text PDFs only (not scans). Either a table with <code>Username</code> and <code>Password</code> headers, or one student per line: <code>21A91A0501 Pass@123 A</code> (roll no., password and optional section; space, comma or tab between them).</p></details>
+    <a class="small" href="/admin/template/users"><%- icon("download") %> Download the Excel template</a></div>
+  <div class="modal-foot"><button class="btn btn-ghost" type="button" data-close>Cancel</button><button class="btn btn-primary" type="submit">Upload</button></div></form></dialog>
+
+<script>
+(function () {
+  var all = document.getElementById("selAll"), bar = document.getElementById("bulkBar"), cnt = document.getElementById("selCount");
+  if (!all) return;
+  var rows = function () { return Array.prototype.slice.call(document.querySelectorAll(".rowSel")); };
+  function sync() { var n = rows().filter(function (c) { return c.checked; }).length; cnt.textContent = n; bar.hidden = n === 0; all.checked = n > 0 && n === rows().length; }
+  all.addEventListener("change", function () { rows().forEach(function (c) { c.checked = all.checked; }); sync(); });
+  document.addEventListener("change", function (e) { if (e.target.classList && e.target.classList.contains("rowSel")) sync(); });
+})();
+</script>

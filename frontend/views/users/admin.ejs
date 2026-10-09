@@ -1,0 +1,119 @@
+<% layout('layouts/boilerplate') %>
+<div class="page-head">
+  <div><h1><%= isSuper ? "Manage" : "Create a test" %></h1><p><%= isSuper ? "Create tests, post announcements and keep the portal running." : "Make a test from your own subjects" + (currUser.subjects && currUser.subjects.length ? " (" + currUser.subjects.join(", ") + ")" : "") + "." %></p></div>
+  <div class="actions"><% if (isSuper) { %><a class="btn" href="/admin/students"><%- icon("users") %>Students (<%= studentCount %>)</a><a class="btn" href="/admin/teachers"><%- icon("user") %>Teachers</a><% } %><a class="btn" href="/admin/flashcards"><%- icon("layers") %>Flashcards</a></div>
+</div>
+
+<div class="grid cols-main" style="align-items:start">
+  <section class="card" id="create">
+    <div class="card-head"><h2><%- icon("plus") %>Create a test</h2></div>
+    <% if (!pool.length) { %>
+      <div class="empty"><span class="dot-icon warn"><%- icon("layers") %></span><h3><%= isSuper || subjects.length ? "Upload flashcards first" : "No subject assigned yet" %></h3><p><%= isSuper || subjects.length ? "Tests are built from your flashcard library." : "Ask the administrator to give you a subject, then add flashcards for it." %></p><a class="btn btn-primary btn-sm" href="/admin/flashcards">Upload flashcards</a></div>
+    <% } else { %>
+    <form action="/create-test" method="POST" id="testForm" class="stack-lg" style="gap:18px">
+      <div class="form-grid">
+        <div class="field"><label for="tname">Test name</label><input class="input" id="tname" name="name" required maxlength="120" placeholder="e.g. Unit 1 quiz"></div>
+        <div class="field"><label for="tsub">Subject</label><% if (isSuper) { %><input class="input" id="tsub" name="subject" list="subjectList" maxlength="80" placeholder="Choose or type"><% } else { %><select class="select" id="tsub" name="subject" required><% subjects.forEach(s => { %><option value="<%= s.subject %>"><%= s.subject %></option><% }) %></select><% } %>
+          <datalist id="subjectList"><% subjects.forEach(s => { %><option value="<%= s.subject %>"><% }) %></datalist></div>
+        <div class="field"><label for="tdur">Duration (minutes)</label><input class="input" id="tdur" name="duration" type="number" min="1" max="600" value="30" required></div>
+        <div class="field"><label for="tdesc">Instructions <span class="muted">(optional)</span></label><input class="input" id="tdesc" name="description" maxlength="500" placeholder="Shown to students before they start"></div>
+        <div class="field"><label for="tss">Auto-start at <span class="muted">(optional · common time)</span></label><input class="input" id="tss" name="scheduledStart" type="datetime-local"></div>
+        <div class="field"><label for="tse">Auto-end at <span class="muted">(optional · common time)</span></label><input class="input" id="tse" name="scheduledEnd" type="datetime-local"></div>
+        <label class="check"><input type="checkbox" name="showReview" checked><div><b>Answer review after the test</b><span>Students see expected answers once the test ends.</span></div></label>
+        <label class="check"><input type="checkbox" name="allowCheck" checked><div><b>"Check match %" during the test</b><span>On by default — students can see how close their answer is. Untick for a strict test.</span></div></label>
+      </div>
+
+      <div class="stack" style="gap:10px" id="targetBox">
+        <div class="row-between"><h3>Who writes this test?</h3><span class="muted small"><%= sections.list.length %> section<%= sections.list.length === 1 ? "" : "s" %> · <%= studentCount %> students</span></div>
+        <div class="grid cols-2" style="gap:10px">
+          <label class="check"><input type="radio" name="target" value="all" checked><div><b>All students</b><span>Every student can see and write it.</span></div></label>
+          <label class="check"><input type="radio" name="target" value="sections" <%= sections.list.length ? "" : "disabled" %>><div><b>Selected sections</b><span><%= sections.list.length ? "Only students of the ticked sections. Perfect when sections write at different times." : "Put students into sections first (Students page)." %></span></div></label>
+        </div>
+        <% if (sections.list.length) { %>
+        <div class="sec-panel" id="secPanel" hidden>
+          <label class="check" style="margin-bottom:10px"><input type="checkbox" name="sameTime" id="sameTime" checked><div><b>Same time for every ticked section</b><span>Untick to give each section its own start / end time. One test is created per section, so each section starts and ends on its own.</span></div></label>
+          <div class="sec-rows">
+            <% sections.list.forEach(sc => { %>
+              <div class="sec-row">
+                <label class="sec-pick"><input type="checkbox" name="secOn" value="<%= sc.section %>"><span><b>Section <%= sc.section %></b><small><%= sc.count %> student<%= sc.count === 1 ? "" : "s" %></small></span></label>
+                <input type="hidden" name="secName" value="<%= sc.section %>">
+                <div class="sec-time"><label>Starts<input class="input input-sm" type="datetime-local" name="secStart" aria-label="Start time for section <%= sc.section %>"></label>
+                  <label>Ends<input class="input input-sm" type="datetime-local" name="secEnd" aria-label="End time for section <%= sc.section %>"></label></div>
+              </div>
+            <% }) %>
+          </div>
+          <div class="row" style="margin-top:8px"><button class="btn btn-sm btn-ghost" type="button" id="secAll">Tick all sections</button><button class="btn btn-sm btn-ghost" type="button" id="secNone">Clear</button>
+            <% if (sections.unassigned) { %><span class="muted xs"><%= sections.unassigned %> student<%= sections.unassigned === 1 ? "" : "s" %> without a section can only write “All students” tests.</span><% } %></div>
+        </div>
+        <% } %>
+      </div>
+
+      <div class="stack" style="gap:10px">
+        <div class="row-between"><h3>Choose questions</h3><span class="muted small" id="poolInfo"></span></div>
+        <input type="hidden" name="pickMode" id="pickMode" value="manual">
+        <div class="seg" role="tablist" aria-label="How to choose questions">
+          <button type="button" class="seg-btn is-active" data-mode="manual" role="tab" aria-selected="true"><%- icon("check") %>Pick manually</button>
+          <button type="button" class="seg-btn" data-mode="random" role="tab" aria-selected="false"><%- icon("shuffle") %>Pick randomly</button>
+        </div>
+        <div class="rand-panel" id="randPanel" hidden>
+          <p class="muted small" style="margin-bottom:10px">The system picks the questions for you at random — no ticking. Every time you create a test you get a different set.</p>
+          <div class="form-grid">
+            <div class="field"><label for="rCount">How many questions?</label><input class="input" id="rCount" name="randomCount" type="number" min="1" max="200" value="10" inputmode="numeric"></div>
+            <div class="field"><label for="rSub">From which subject?</label>
+              <select class="select" id="rSub" name="randomSubject"><option value=""><%= isSuper ? "All subjects" : (subjects.length > 1 ? "All my subjects" : "My subject") %></option><% subjects.forEach(s => { %><option value="<%= s.subject %>" data-n="<%= s.count %>"><%= s.subject %> (<%= s.count %>)</option><% }) %></select></div>
+            <div class="field"><label for="rMarks">Marks per question</label><input class="input" id="rMarks" name="randomMarks" type="number" min="0.5" step="0.5" value="1"><span class="hint">Final result is always shown out of 20.</span></div>
+          </div>
+          <div class="alert" style="margin-top:10px"><%- icon("shuffle") %><div id="randInfo">Questions available: <b id="randAvail"><%= pool.length %></b></div></div>
+        </div>
+        <div class="picker" id="picker">
+          <div class="picker-bar">
+            <div class="input-icon grow" style="flex:1 1 200px"><%- icon("search") %><input class="input input-sm" type="search" id="pSearch" placeholder="Search questions" style="padding-left:40px"></div>
+            <select class="select input-sm" id="pSubject" style="width:auto"><option value="">All subjects</option><% subjects.forEach(s => { %><option value="<%= s.subject %>"><%= s.subject %> (<%= s.count %>)</option><% }) %></select>
+            <button class="btn btn-sm" type="button" id="pAll">Select visible</button>
+            <button class="btn btn-sm btn-ghost" type="button" id="pNone">Clear</button>
+          </div>
+          <div class="picker-list" id="pList" role="listbox" aria-label="Questions"></div>
+          <div class="picker-foot">
+            <span><b id="pCount">0</b> selected · <b id="pTotal">0</b> marks <span class="muted">→ reported out of <b>20</b></span></span>
+            <span class="row"><label class="small muted" for="pMarks" title="Questions with more marks count for more. The final result is always scaled to 20.">Marks (weight) per question</label><input class="input input-sm" id="pMarks" type="number" min="0.5" step="0.5" value="1" style="width:84px"></span>
+          </div>
+        </div>
+      </div>
+      <div id="hiddenOut"></div>
+      <div class="row"><button class="btn btn-primary btn-lg" type="submit"><%- icon("check") %>Create test</button><span class="muted small">You can start it from the Tests page, or let the schedule start it.</span></div>
+    </form>
+    <script type="application/json" id="poolData"><%- JSON.stringify(pool).replace(/</g, "\\u003c") %></script>
+    <script src="/js/admin.js?v=<%= assetV %>" defer></script>
+    <% } %>
+  </section>
+
+  <% if (isSuper) { %>
+  <div class="stack-lg">
+    <section class="card" id="announcements">
+      <div class="card-head"><h2><%- icon("megaphone") %>Announcements</h2></div>
+      <form class="stack" action="/admin/announcements" method="POST">
+        <div class="field"><label for="atitle">Title</label><input class="input" id="atitle" name="title" maxlength="120" required placeholder="e.g. Mid-term test on Friday"></div>
+        <div class="field"><label for="abody">Details <span class="muted">(optional)</span></label><textarea class="textarea" id="abody" name="body" maxlength="1000" style="min-height:80px"></textarea></div>
+        <label class="check"><input type="checkbox" name="pinned"><div><b>Pin to top</b><span>Pinned items stay above newer ones.</span></div></label>
+        <div><button class="btn btn-primary" type="submit">Post announcement</button></div>
+      </form>
+      <% if (announcements.length) { %>
+        <hr>
+        <div class="list">
+          <% announcements.forEach(a => { %>
+            <div class="list-item"><div class="grow"><b><%= a.title %></b><span class="muted xs"><%= fmt.ago(a.createdAt) %><%= a.pinned ? " · pinned" : "" %></span></div>
+              <form class="inline-form" action="/admin/announcements/<%= a._id %>?_method=DELETE" method="POST" data-confirm="Remove “<%= a.title %>” from every dashboard?" data-confirm-ok="Remove"><button class="btn btn-ghost btn-icon btn-sm" aria-label="Delete announcement" style="color:var(--bad)"><%- icon("trash") %></button></form></div>
+          <% }) %>
+        </div>
+      <% } %>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2><%- icon("download") %>Excel templates</h2></div>
+      <p class="muted small mb">Fill these in and upload them on the Students / Flashcards pages.</p>
+      <div class="row"><a class="btn btn-sm" href="/admin/template/users"><%- icon("users") %>Students template</a><a class="btn btn-sm" href="/admin/template/flashcards"><%- icon("layers") %>Flashcards template</a></div>
+    </section>
+  </div>
+  <% } %>
+</div>
+

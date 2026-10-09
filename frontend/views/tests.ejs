@@ -1,0 +1,90 @@
+<% layout('layouts/boilerplate') %>
+<%
+  const live = tests.filter(t => t.status === "live"), upcoming = tests.filter(t => t.status === "upcoming"), ended = tests.filter(t => t.status === "ended");
+  const start = live.length ? 0 : upcoming.length ? 1 : 2;
+  const groups = [
+    { id: "live", label: "Live now", list: live, empty: isAdmin ? "No test is running. Start one from the Upcoming tab." : "No test is live right now. Upcoming tests will appear here the moment they start." },
+    { id: "upcoming", label: "Upcoming", list: upcoming, empty: isAdmin ? "Nothing scheduled. Create a test to get started." : "No upcoming tests have been scheduled." },
+    { id: "ended", label: "Completed", list: ended, empty: "Finished tests will be listed here." }
+  ];
+%>
+<div class="page-head">
+  <div><h1>Tests</h1><p><%= isAdmin ? "Create, start and monitor tests." : "Timed, auto-marked tests. You get one attempt each." %></p></div>
+  <% if (isAdmin) { %><div class="actions"><a class="btn btn-primary" href="/admin#create"><%- icon("plus") %>New test</a></div><% } %>
+</div>
+
+<% if (isAdmin && sections && sections.length) { %>
+<div class="chips chips-scroll mb" aria-label="Filter by section">
+  <a class="chip <%= !section ? 'is-active' : '' %>" href="/tests">All tests</a>
+  <% sections.forEach(sc => { %><a class="chip <%= section === sc.section ? 'is-active' : '' %>" href="/tests?section=<%= encodeURIComponent(sc.section) %>">Section <%= sc.section %> <small><%= sc.count %></small></a><% }) %>
+</div>
+<% } %>
+
+<div data-tabs>
+  <div class="tabs mb" role="tablist">
+    <% groups.forEach((g, gi) => { %>
+      <button class="tab" role="tab" id="tab-<%= g.id %>" aria-controls="panel-<%= g.id %>" aria-selected="<%= gi === start %>"><%= g.label %> <span class="pill"><%= g.list.length %></span></button>
+    <% }) %>
+  </div>
+
+  <% groups.forEach(g => { %>
+    <div class="tabpanel" id="panel-<%= g.id %>" role="tabpanel" aria-labelledby="tab-<%= g.id %>" hidden>
+      <% if (!g.list.length) { %>
+        <div class="card"><div class="empty"><span class="dot-icon"><%- icon(g.id === "live" ? "play" : g.id === "upcoming" ? "calendar" : "check-circle") %></span><h3>Nothing here</h3><p><%= g.empty %></p></div></div>
+      <% } else { %>
+        <div class="grid cols-3">
+          <% g.list.forEach(t => { const pctAtt = t.audience ? Math.min(100, Math.round(t.attempted / t.audience * 100)) : 0; %>
+            <article class="card test-card <%= t.status === 'live' ? 'is-live' : '' %>">
+              <div class="stack" style="gap:10px">
+                <div class="row-between" style="align-items:flex-start">
+                  <span class="badge badge-accent"><%= t.subject || "General" %></span>
+                  <% if (t.status === "live") { %><span class="badge badge-ok badge-live">Live</span>
+                  <% } else if (t.status === "upcoming") { %><span class="badge">Upcoming</span>
+                  <% } else { %><span class="badge">Ended</span><% } %>
+                </div>
+                <h3><%= t.name %></h3>
+                <% if (isAdmin || (t.sections && t.sections.length)) { %><div class="sec-chips"><% if (t.sections && t.sections.length) { %><% t.sections.forEach(x => { %><span class="badge badge-sec">Sec <%= x %></span><% }) %><% } else { %><span class="badge">All students</span><% } %></div><% } %>
+                <% if (t.description) { %><p class="muted small"><%= t.description %></p><% } %>
+                <div class="meta">
+                  <% if (isSuper && t.createdByName) { %><span><%- icon("user") %><%= t.createdByName %></span><% } %>
+                  <span><%- icon("clock") %><%= t.duration %> min</span>
+                  <span><%- icon("file") %><%= t.qCount %> question<%= t.qCount === 1 ? "" : "s" %></span>
+                  <% if (t.scheduledStart) { %><span><%- icon("calendar") %><%= fmt.dateTime(t.scheduledStart) %></span><% } %>
+                </div>
+              </div>
+
+              <% if (isAdmin) { %>
+                <% if (t.status !== "upcoming") { %>
+                  <div><div class="row-between xs muted"><span>Submitted</span><span><b><%= t.attempted %></b> / <%= t.audience %></span></div><div class="bar <%= t.status === 'live' ? 'ok' : '' %>" style="--v:<%= pctAtt %>%;margin-top:6px"><i></i></div></div>
+                <% } %>
+                <% if (t.status === "live" && t.endsAt) { %><div class="small ok"><%- icon("clock") %> Ends in <span class="countdown" data-countdown="<%= fmt.iso(t.endsAt) %>" data-mode="left">…</span></div><% } %>
+                <div class="row">
+                  <% if (t.status === "upcoming") { %>
+                    <form class="inline-form" action="/admin/start-test/<%= t._id %>" method="POST"><button class="btn btn-primary btn-sm"><%- icon("play") %>Start now</button></form>
+                  <% } else if (t.status === "live") { %>
+                    <form class="inline-form" action="/admin/end-test/<%= t._id %>" method="POST" data-confirm="Students who have not submitted yet will not be able to submit after this." data-confirm-title="End this test now?" data-confirm-ok="End test"><button class="btn btn-danger btn-sm"><%- icon("stop") %>End</button></form>
+                  <% } %>
+                  <a class="btn btn-sm" href="/admin/results/<%= t._id %>"><%- icon("chart") %>Results</a>
+                  <form class="inline-form" action="/admin/duplicate-test/<%= t._id %>" method="POST"><button class="btn btn-sm btn-ghost btn-icon" title="Duplicate" aria-label="Duplicate test"><%- icon("copy") %></button></form>
+                  <form class="inline-form" action="/admin/delete-test/<%= t._id %>?_method=DELETE" method="POST" data-confirm="This permanently deletes “<%= t.name %>” and every student's result for it." data-confirm-title="Delete test?" data-confirm-ok="Delete"><button class="btn btn-sm btn-ghost btn-icon" style="color:var(--bad)" title="Delete" aria-label="Delete test"><%- icon("trash") %></button></form>
+                </div>
+              <% } else { %>
+                <% if (t.result) { %>
+                  <div class="row-between"><span class="badge badge-ok"><%- icon("check") %>Submitted</span><span class="tnum"><b><%= fmt.num(t.result.written) %></b><span class="muted"> / 20</span> · <%= Math.round(t.result.percent) %>%</span></div>
+                  <a class="btn btn-block" href="/result/<%= t._id %>"><%- icon("eye") %>View result</a>
+                <% } else if (t.status === "live") { %>
+                  <% if (t.endsAt) { %><div class="small ok"><%- icon("clock") %> <span class="countdown" data-countdown="<%= fmt.iso(t.endsAt) %>" data-mode="left">…</span> left</div><% } %>
+                  <a class="btn btn-primary btn-block" href="/test/<%= t._id %>">Start test <%- icon("arrow-right") %></a>
+                <% } else if (t.status === "upcoming") { %>
+                  <div class="alert"><%- icon("clock") %><div><% if (t.scheduledStart) { %>Starts in <b class="countdown" data-countdown="<%= fmt.iso(t.scheduledStart) %>">…</b><% } else { %>Your teacher will start this test soon.<% } %></div></div>
+                <% } else { %>
+                  <span class="badge badge-bad">Not attempted</span>
+                <% } %>
+              <% } %>
+            </article>
+          <% }) %>
+        </div>
+      <% } %>
+    </div>
+  <% }) %>
+</div>

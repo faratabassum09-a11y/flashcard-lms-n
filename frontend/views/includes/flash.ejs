@@ -1,0 +1,13 @@
+<%# Flash messages become toasts (app.js reads this JSON). No-JS fallback: a plain alert. %>
+<%
+  const _t = [];
+  (success || []).forEach(m => _t.push({ type: "ok", msg: String(m) }));
+  (error || []).forEach(m => _t.push({ type: "bad", msg: String(m) }));
+%>
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+<% if (_t.length) { %>
+<script type="application/json" id="toast-data"><%- JSON.stringify(_t).replace(/</g, "\\u003c") %></script>
+<noscript>
+  <div class="page"><% _t.forEach(t => { %><div class="alert <%= t.type === 'ok' ? 'alert-ok' : 'alert-bad' %>"><%= t.msg %></div><% }) %></div>
+</noscript>
+<% } %>

@@ -1,0 +1,105 @@
+<% layout('layouts/blank') %>
+<%
+  const qs = test.questions;
+  const totalMarks = qs.reduce((a, q) => a + (Number(q.marks) || 0), 0);
+  const allowCheck = !!test.allowCheck;
+%>
+
+<!-- Intro -->
+<div class="exam-intro" id="intro">
+  <div class="card">
+    <a class="brand" href="/tests" style="padding:0"><span class="brand-mark"><%- icon("layers") %></span>FlashPortal</a>
+    <div class="stack" style="gap:10px">
+      <h1><%= test.name %></h1>
+      <div class="row">
+        <span class="badge badge-accent"><%= test.subject || "General" %></span>
+        <span class="badge"><%- icon("clock") %><%= test.duration %> min</span>
+        <span class="badge"><%- icon("file") %><%= qs.length %> questions</span>
+        <span class="badge"><%- icon("target") %>20 marks</span>
+      </div>
+      <% if (test.description) { %><p class="muted"><%= test.description %></p><% } %>
+    </div>
+    <div class="alert alert-warn"><%- icon("alert") %><div><b>One attempt only.</b> The clock is shared — it keeps running even if you close the page.</div></div>
+    <ul class="rules">
+      <li><%- icon("check-circle") %>Full screen is turned on. If you leave it you have 5 seconds to return.</li>
+      <li><%- icon("check-circle") %>Switching tabs or windows submits your test automatically.</li>
+      <li><%- icon("check-circle") %>Copy, paste, right-click and developer shortcuts are disabled.</li>
+      <li><%- icon("check-circle") %>Your answers are saved as you type (on this device and on the server), so a refresh, a crash or a dropped connection will not lose them.</li>
+      <li><%- icon("check-circle") %>Marks: ≥ 75% keyword match = full marks, ≥ 50% = half marks.</li>
+    </ul>
+    <div class="row">
+      <button class="btn btn-primary btn-lg grow" type="button" id="startBtn"><%- icon("play") %>Start test</button>
+      <a class="btn btn-lg btn-ghost" href="/tests">Not now</a>
+    </div>
+  </div>
+</div>
+
+<!-- Fullscreen warning -->
+<div class="warn-banner" id="warnBanner" role="alert">
+  <div><%- icon("alert") %> Return to full screen! Auto-submitting in <span id="warnCount">5</span>s…</div>
+  <button class="btn btn-sm" type="button" id="resumeBtn" style="--b-bg:#fff;--b-fg:#b4233c">Resume full screen</button>
+</div>
+
+<div class="net-banner" id="netBanner" role="status" aria-live="polite"></div>
+<% if (typeof serverDraft !== "undefined" && serverDraft) { %><script type="application/json" id="serverDraft"><%- JSON.stringify(serverDraft).replace(/</g, "\\u003c") %></script><% } %>
+
+<!-- Exam -->
+<div class="exam" id="exam" data-remaining="<%= remainingTime %>" data-test-id="<%= test._id %>" data-user="<%= currUser.username %>" data-allow-check="<%= allowCheck %>" data-count="<%= qs.length %>">
+  <header class="exam-top">
+    <div class="exam-title truncate"><%= test.name %></div>
+    <div class="progress" style="flex:1"><div class="row-between xs muted" style="margin-bottom:4px"><span><b id="answeredN">0</b> / <%= qs.length %> answered</span><span id="violationCount"></span></div><div class="bar bar-lg ok" id="progressBar" style="--v:0%"><i></i></div></div>
+    <div class="timer" id="timerBox"><%- icon("clock") %><span id="timer">--:--</span></div>
+  </header>
+
+  <div class="exam-wrap">
+    <aside class="palette" aria-label="Question navigator">
+      <h3>Questions</h3>
+      <div class="palette-grid" id="palette">
+        <% qs.forEach((q, i) => { %><button type="button" class="pbtn" data-i="<%= i %>" aria-label="Go to question <%= i + 1 %>"><%= i + 1 %></button><% }) %>
+      </div>
+      <div class="legend"><span class="d"><i></i>Answered</span><span class="f"><i></i>Flagged for review</span></div>
+      <button class="btn btn-primary btn-block" type="button" id="submitBtn"><%- icon("check") %>Submit test</button>
+    </aside>
+
+    <main class="exam-main">
+      <form id="testForm" method="POST" action="/submit-test" autocomplete="off">
+        <input type="hidden" name="testId" value="<%= test._id %>">
+        <% qs.forEach((q, i) => { const qId = q.questionId._id.toString(); %>
+          <section class="q-card" data-i="<%= i %>" data-qid="<%= qId %>" aria-label="Question <%= i + 1 %>">
+            <div class="q-meta">
+              <div class="row"><span class="badge badge-accent">Question <%= i + 1 %> of <%= qs.length %></span><span class="badge"><%= fmt.num(totalMarks > 0 ? q.marks / totalMarks * 20 : 0) %> mark<%= Math.abs((totalMarks > 0 ? q.marks / totalMarks * 20 : 0) - 1) < 0.05 ? "" : "s" %></span></div>
+              <button type="button" class="btn btn-sm btn-ghost" data-flag><%- icon("flag") %><span>Flag for review</span></button>
+            </div>
+            <div class="q-text"><%= q.questionId.question %></div>
+            <textarea class="textarea" name="answers[<%= qId %>]" placeholder="Type your answer here…" spellcheck="false" maxlength="4000" aria-label="Your answer"></textarea>
+            <% if (allowCheck) { %>
+              <div class="row"><button type="button" class="btn btn-sm" data-check><%- icon("target") %>Check match %</button><span class="small" data-check-result></span></div>
+            <% } %>
+            <div class="q-nav">
+              <button type="button" class="btn" data-prev <%= i === 0 ? "disabled" : "" %>><%- icon("arrow-left") %>Previous</button>
+              <% if (i < qs.length - 1) { %><button type="button" class="btn btn-primary" data-next>Next <%- icon("arrow-right") %></button>
+              <% } else { %><button type="button" class="btn btn-primary" data-finish><%- icon("check") %>Review &amp; submit</button><% } %>
+            </div>
+          </section>
+        <% }) %>
+      </form>
+    </main>
+  </div>
+</div>
+
+<dialog class="modal" id="submitDlg">
+  <form method="dialog">
+    <div class="modal-body">
+      <h3>Submit your test?</h3>
+      <p id="submitSummary"></p>
+      <div class="alert alert-warn"><%- icon("alert") %><div>You cannot re-attempt after submitting.</div></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-ghost" value="cancel">Keep working</button><button class="btn btn-primary" value="ok">Submit now</button></div>
+  </form>
+</dialog>
+
+<div class="submitted" id="submittedOverlay" role="alert">
+  <div class="stack" style="justify-items:center"><span class="dot-icon ok" style="width:68px;height:68px;border-radius:22px"><%- icon("check-circle", "i-lg") %></span><h1>Submitting…</h1><p class="muted" id="submitReason">Saving your answers and calculating your marks.</p><button class="btn btn-primary" type="button" id="retryBtn" style="display:none">Retry now</button></div>
+</div>
+
+<script src="/js/exam.js?v=<%= assetV %>" defer></script>

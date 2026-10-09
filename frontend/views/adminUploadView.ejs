@@ -1,0 +1,11 @@
+<% layout('layouts/boilerplate') %>
+<a class="crumb" href="/admin/uploads"><%- icon("arrow-left") %>All uploads</a>
+<div class="page-head"><div><h1><%= uploadDoc.filename %></h1>
+  <p><%= uploadDoc.type === "users" ? "Student upload" : "Flashcard upload" %><%= uploadDoc.subject ? " · " + uploadDoc.subject : "" %> · <%= totalRows %> row<%= totalRows === 1 ? "" : "s" %> · <%= fmt.dateTime(uploadDoc.uploadedAt) %></p></div></div>
+<div class="card card-flush">
+  <% if (!rows.length) { %><div class="empty"><p>No rows found in this upload.</p></div>
+  <% } else { %><div class="table-wrap"><table class="t">
+    <thead><tr><th>#</th><% columns.forEach(c => { %><th><%= c %></th><% }) %></tr></thead>
+    <tbody><% rows.forEach((r, i) => { %><tr><td class="muted"><%= i + 1 %></td><% columns.forEach(c => { const v = r[c]; %><td style="max-width:320px"><%= v === undefined || v === null ? "" : (typeof v === "object" ? JSON.stringify(v) : String(v)) %></td><% }) %></tr><% }) %></tbody></table></div>
+    <% if (totalRows > rows.length) { %><p class="muted small center" style="padding:14px">Showing the first <%= rows.length %> rows.</p><% } %><% } %>
+</div>

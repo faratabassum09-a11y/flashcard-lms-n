@@ -1,0 +1,50 @@
+<% layout('layouts/boilerplate') %>
+<%
+  const shown = user.displayName || user.username;
+  const g = stats.grade;
+  const mp = stats.totalCards ? Math.round(stats.mastered / stats.totalCards * 100) : 0;
+%>
+<div class="card mb" style="background:linear-gradient(135deg,var(--accent-soft),transparent 60%),var(--surface)">
+  <div class="profile-hero">
+    <span class="avatar avatar-lg"><%= fmt.initials(shown) %></span>
+    <div class="grow">
+      <h1><%= shown %></h1>
+      <p class="muted"><%= isSuper ? "Administrator" : isAdmin ? "Teacher" : "Roll no. " + user.username %><% if (!isAdmin && user.section) { %> · <span class="badge badge-sec">Section <%= user.section %></span><% } %> · member since <%= fmt.date(user.createdAt) %></p>
+      <div class="row mt" style="margin-top:12px"><a class="btn btn-sm" href="/settings"><%- icon("edit") %>Edit profile</a><% if (!isAdmin) { %><a class="btn btn-sm btn-ghost" href="/leaderboard"><%- icon("trophy") %>Leaderboard</a><% } %></div>
+    </div>
+  </div>
+</div>
+
+<% if (!isAdmin) { %>
+  <div class="grid cols-4 mb">
+    <div class="card kpi"><div class="kpi-top">Tests taken <span class="kpi-icon"><%- icon("file") %></span></div><div class="kpi-value"><%= stats.tests %></div><div class="kpi-sub">avg <%= fmt.num(stats.avg20) %> / 20 per test</div></div>
+    <div class="card kpi"><div class="kpi-top">Average <span class="kpi-icon ok"><%- icon("target") %></span></div><div class="kpi-value"><%= stats.avg %><small>%</small></div><div class="kpi-sub"><%= stats.tests ? "Grade " + g.letter + " · " + g.label : "No tests yet" %></div></div>
+    <div class="card kpi"><div class="kpi-top">College rank <span class="kpi-icon warn"><%- icon("trophy") %></span></div><div class="kpi-value"><%= stats.rank ? "#" + stats.rank : "—" %> <% if (stats.rank) { %><small>of <%= stats.ranked %></small><% } %></div><div class="kpi-sub"><%= stats.best ? "Best: " + Math.round(stats.best.percent) + "% in " + stats.best.name : "Take a test to get ranked" %></div></div>
+    <div class="card kpi"><div class="kpi-top">Cards mastered <span class="kpi-icon info"><%- icon("layers") %></span></div><div class="kpi-value"><%= stats.mastered %> <small>/ <%= stats.totalCards %></small></div><div class="bar mt" style="--v:<%= mp %>%;margin-top:6px"><i></i></div></div>
+  </div>
+
+  <section class="card card-flush">
+    <div class="card-head" style="padding:20px 22px 0"><h2><%- icon("chart") %>Test history</h2></div>
+    <% if (!results.length) { %>
+      <div class="empty"><span class="dot-icon"><%- icon("file") %></span><h3>No tests taken yet</h3><p>Your results will be listed here.</p><a class="btn btn-primary btn-sm" href="/tests">Browse tests</a></div>
+    <% } else { %>
+      <div class="table-wrap" style="margin-top:12px"><table class="t">
+        <thead><tr><th>Test</th><th>Subject</th><th class="num">Marks /20</th><th>Result</th><th>Submitted</th><th></th></tr></thead>
+        <tbody>
+          <% results.forEach(r => { const p = r.total ? Math.round(r.score / r.total * 100) : 0; %>
+            <tr>
+              <td><b><%= r.testId ? r.testId.name : "Deleted test" %></b></td>
+              <td class="muted"><%= r.testId ? r.testId.subject : "—" %></td>
+              <td class="num"><b><%= fmt.num(fmt.scaled(r.score, r.total)) %></b></td>
+              <td><span class="badge <%= p >= 75 ? 'badge-ok' : p >= 40 ? 'badge-warn' : 'badge-bad' %>"><%= p %>%</span></td>
+              <td class="muted nowrap"><%= fmt.dateTime(r.submittedAt) %></td>
+              <td class="actions"><% if (r.testId) { %><a class="btn btn-sm btn-ghost" href="/result/<%= r.testId._id %>">View <%- icon("chevron-right") %></a><% } %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table></div>
+    <% } %>
+  </section>
+<% } else { %>
+  <div class="alert"><%- icon("shield") %><div>You're signed in as <%= isSuper ? "the administrator" : "a teacher" %>. Use the sidebar to manage tests<%= isSuper ? ", students" : "" %> and flashcards.</div></div>
+<% } %>

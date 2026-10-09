@@ -1,0 +1,79 @@
+<% layout('layouts/boilerplate') %>
+<div class="page-head">
+  <div><h1>Teachers</h1><p><%= teachers.length %> teacher<%= teachers.length === 1 ? "" : "s" %> · they sign in on the normal login page, create tests only for their own subjects and see only their own tests and results.</p></div>
+  <div class="actions"><button class="btn btn-primary" type="button" data-open="#addTeacher"><%- icon("plus") %>Add teacher</button></div>
+</div>
+
+<div class="card card-flush">
+  <% if (!teachers.length) { %>
+    <div class="empty"><span class="dot-icon"><%- icon("user") %></span><h3>No teachers yet</h3><p>Create a teacher account, choose the subjects they teach, and share the username and password with them.</p><button class="btn btn-primary btn-sm" type="button" data-open="#addTeacher">Add the first teacher</button></div>
+  <% } else { %>
+    <div class="table-wrap"><table class="t">
+      <thead><tr><th>Teacher</th><th>Subjects</th><th class="num">Tests created</th><th>Added</th><th></th></tr></thead>
+      <tbody>
+        <% teachers.forEach(t => { %>
+          <tr>
+            <td><div class="row" style="flex-wrap:nowrap"><span class="avatar avatar-sm"><%= fmt.initials(t.displayName || t.username) %></span><span><b><%= t.username %></b><% if (t.displayName) { %><span class="muted small" style="display:block"><%= t.displayName %></span><% } %></span></div></td>
+            <td><% if (!t.subjects || !t.subjects.length) { %><span class="badge badge-warn">no subject yet</span><% } else { %><span class="kw"><% t.subjects.forEach(x => { %><i><%= x %></i><% }) %></span><% } %></td>
+            <td class="num"><%= t.tests %></td>
+            <td class="muted nowrap"><%= fmt.date(t.createdAt) %></td>
+            <td class="actions">
+              <button class="btn btn-sm btn-ghost" type="button" data-edit-teacher data-id="<%= t._id %>" data-name="<%= t.displayName || '' %>" data-subjects="<%= JSON.stringify(t.subjects || []) %>"><%- icon("edit") %>Edit</button>
+              <button class="btn btn-sm btn-ghost" type="button" data-pw-teacher data-id="<%= t._id %>" data-user="<%= t.username %>"><%- icon("key") %>Password</button>
+              <form class="inline-form" action="/admin/teachers/<%= t._id %>?_method=DELETE" method="POST" data-confirm="<%= t.username %> will no longer be able to sign in. Their tests and results are kept." data-confirm-title="Remove teacher?" data-confirm-ok="Remove"><button class="btn btn-sm btn-ghost btn-icon" style="color:var(--bad)" aria-label="Remove <%= t.username %>"><%- icon("trash") %></button></form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table></div>
+  <% } %>
+</div>
+
+<%
+  const picker = (prefix) => subjects.map((s, i) => `<label><input type="checkbox" name="subjects" value="${String(s.subject).replace(/"/g, "&quot;")}" data-subj> ${String(s.subject).replace(/</g, "&lt;")} <small class="muted">(${s.count})</small></label>`).join("");
+%>
+
+<dialog class="modal modal-wide" id="addTeacher"><form action="/admin/teachers" method="POST" autocomplete="off">
+  <div class="modal-body"><h3>Add a teacher</h3>
+    <div class="form-grid">
+      <div class="field"><label for="tu">Username</label><input class="input" id="tu" name="username" required maxlength="40" placeholder="e.g. t.sharma (no spaces)"></div>
+      <div class="field"><label for="tn">Name <span class="muted">(optional)</span></label><input class="input" id="tn" name="displayName" maxlength="40" placeholder="e.g. Mr Sharma"></div>
+      <div class="field"><label for="tp">Password</label><input class="input" id="tp" name="password" required minlength="6" placeholder="At least 6 characters"></div>
+    </div>
+    <div class="field"><label>Subjects this teacher can create tests for</label>
+      <% if (subjects.length) { %><div class="subj-pick"><%- picker("a") %></div><% } else { %><p class="muted small">No flashcard subjects exist yet — type the subject name below.</p><% } %>
+      <input class="input" name="newSubjects" placeholder="Other subjects, comma separated (e.g. Physics, Chemistry)" style="margin-top:8px">
+      <span class="hint">The teacher can add flashcards and make tests only for these subjects.</span></div></div>
+  <div class="modal-foot"><button class="btn btn-ghost" type="button" data-close>Cancel</button><button class="btn btn-primary" type="submit">Create teacher</button></div></form></dialog>
+
+<dialog class="modal modal-wide" id="editTeacher"><form id="editForm" method="POST">
+  <div class="modal-body"><h3>Edit teacher</h3>
+    <div class="field"><label for="en">Name</label><input class="input" id="en" name="displayName" maxlength="40"></div>
+    <div class="field"><label>Subjects</label>
+      <% if (subjects.length) { %><div class="subj-pick" id="editPick"><%- picker("e") %></div><% } %>
+      <input class="input" id="enew" name="newSubjects" placeholder="Other subjects, comma separated" style="margin-top:8px"></div></div>
+  <div class="modal-foot"><button class="btn btn-ghost" type="button" data-close>Cancel</button><button class="btn btn-primary" type="submit">Save</button></div></form></dialog>
+
+<dialog class="modal" id="pwTeacher"><form id="pwForm" method="POST" autocomplete="off">
+  <div class="modal-body"><h3>Reset password</h3><p>New password for <b id="pwUser"></b>.</p>
+    <div class="field"><label for="pn">New password</label><input class="input" id="pn" name="newPassword" required minlength="6"></div></div>
+  <div class="modal-foot"><button class="btn btn-ghost" type="button" data-close>Cancel</button><button class="btn btn-primary" type="submit">Reset password</button></div></form></dialog>
+
+<script>
+(function () {
+  var ed = document.getElementById("editTeacher"), pw = document.getElementById("pwTeacher");
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-edit-teacher]"), p = e.target.closest("[data-pw-teacher]");
+    if (b) {
+      var subs = []; try { subs = JSON.parse(b.dataset.subjects); } catch (x) {}
+      document.getElementById("editForm").action = "/admin/teachers/" + b.dataset.id;
+      document.getElementById("en").value = b.dataset.name;
+      var known = [];
+      ed.querySelectorAll("[data-subj]").forEach(function (c) { c.checked = subs.indexOf(c.value) > -1; known.push(c.value); });
+      document.getElementById("enew").value = subs.filter(function (x) { return known.indexOf(x) < 0; }).join(", ");
+      ed.showModal();
+    }
+    if (p) { document.getElementById("pwForm").action = "/admin/teachers/" + p.dataset.id + "/reset-password"; document.getElementById("pwUser").textContent = p.dataset.user; pw.showModal(); }
+  });
+})();
+</script>

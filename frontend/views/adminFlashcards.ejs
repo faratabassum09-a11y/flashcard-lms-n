@@ -1,0 +1,120 @@
+<% layout('layouts/boilerplate') %>
+<%
+  const url = (o) => { const p = new URLSearchParams(); const v = Object.assign({ subject, q, page: 1 }, o || {}); if (v.subject && v.subject !== "all") p.set("subject", v.subject); if (v.q) p.set("q", v.q); if (v.page > 1) p.set("page", v.page); const s = p.toString(); return "/admin/flashcards" + (s ? "?" + s : ""); };
+  const back = url({ page });
+%>
+<div class="page-head">
+  <div><h1>Flashcards</h1><p><%= totalCards %> cards in <%= subjects.length %> subject<%= subjects.length === 1 ? "" : "s" %></p></div>
+  <div class="actions"><button class="btn" type="button" data-open="#cardDlg" data-new><%- icon("plus") %>Add card</button><button class="btn btn-primary" type="button" data-open="#uploadDlg"><%- icon("upload") %>Bulk upload</button></div>
+</div>
+
+<div class="card mb" style="padding:14px 18px">
+  <div class="row-between" style="flex-wrap:wrap;gap:10px">
+    <div><b><%- icon("zap") %> Keywords are created automatically</b>
+      <div class="muted small">You don't need to type them. The system picks the important words from every answer when you add, edit or upload cards.<% if (missing) { %> <b style="color:var(--warn)"><%= missing %> card<%= missing === 1 ? " has" : "s have" %> no keywords yet.</b><% } %></div></div>
+    <div class="kw-tools">
+      <form class="inline-form" action="/admin/flashcards/auto-keywords" method="POST"><input type="hidden" name="mode" value="missing"><input type="hidden" name="back" value="<%= back %>"><% if (subject !== "all") { %><input type="hidden" name="subject" value="<%= subject %>"><% } %>
+        <button class="btn btn-primary btn-sm" <%= missing ? "" : "disabled" %>><%- icon("zap") %>Generate for cards without keywords</button></form>
+      <form class="inline-form" action="/admin/flashcards/auto-keywords" method="POST" data-confirm="Keywords of <%= subject === 'all' ? 'ALL cards' : 'every card in ' + subject %> are rebuilt from the answers. Keywords you typed by hand will be replaced." data-confirm-title="Regenerate all keywords?" data-confirm-ok="Regenerate" data-confirm-tone="primary"><input type="hidden" name="mode" value="all"><input type="hidden" name="back" value="<%= back %>"><% if (subject !== "all") { %><input type="hidden" name="subject" value="<%= subject %>"><% } %>
+        <button class="btn btn-sm btn-ghost">Regenerate all<%= subject === "all" ? "" : " in " + subject %></button></form>
+    </div>
+  </div>
+</div>
+
+<% if (subjects.length) { %>
+<div class="chips chips-scroll mb">
+  <a class="chip <%= subject === 'all' ? 'is-active' : '' %>" href="<%= url({ subject: 'all' }) %>">All <small><%= totalCards %></small></a>
+  <% subjects.forEach(s => { %><a class="chip <%= subject === s.subject ? 'is-active' : '' %>" href="<%= url({ subject: s.subject }) %>"><%= s.subject %> <small><%= s.count %></small></a><% }) %>
+</div>
+<% } %>
+
+<form class="toolbar mb" method="GET" action="/admin/flashcards" role="search">
+  <div class="input-icon"><%- icon("search") %><input class="input" type="search" name="q" value="<%= q %>" placeholder="Search questions and answers   ( / )" data-search></div>
+  <% if (subject !== "all") { %><input type="hidden" name="subject" value="<%= subject %>"><% } %>
+  <button class="btn" type="submit">Search</button><% if (q) { %><a class="btn btn-ghost" href="<%= url({ q: '' }) %>">Clear</a><% } %>
+  <% if (subject !== "all" && isSuper) { %><button class="btn btn-danger" type="submit" form="delSubject" data-confirm="Every flashcard in “<%= subject %>” will be deleted. Tests that use them will lose those questions." data-confirm-title="Delete the whole subject?" data-confirm-ok="Delete subject"><%- icon("trash") %>Delete subject</button><% } %>
+</form>
+<form id="delSubject" action="/admin/flashcards/delete-subject" method="POST"><input type="hidden" name="subject" value="<%= subject %>"></form>
+
+<div class="card card-flush">
+  <% if (!cards.length) { %>
+    <div class="empty"><span class="dot-icon"><%- icon("layers") %></span><h3><%= totalCards ? "No cards match" : "No flashcards yet" %></h3><p><%= totalCards ? "Try a different search or subject." : "Upload an Excel sheet with question and answer columns, or add cards one by one." %></p></div>
+  <% } else { %>
+    <div class="table-wrap"><table class="t">
+      <thead><tr><th>Subject</th><th>Question</th><th>Answer</th><th>Keywords</th><th></th></tr></thead>
+      <tbody>
+        <% cards.forEach(c => { %>
+          <tr>
+            <td><span class="badge badge-accent"><%= c.subject %></span></td>
+            <td style="min-width:220px;max-width:340px"><%= c.question %></td>
+            <td class="text-2" style="min-width:200px;max-width:340px"><%= c.answer.length > 140 ? c.answer.slice(0, 140) + "…" : c.answer %></td>
+            <td style="min-width:170px;max-width:260px"><% const kws = c.keywords || []; if (!kws.length) { %><span class="badge badge-warn">none yet</span><% } else { %><span class="kw"><% kws.slice(0, 4).forEach(k => { %><i><%= k %></i><% }) %><% if (kws.length > 4) { %><em>+<%= kws.length - 4 %></em><% } %></span><% } %></td>
+            <td class="actions">
+              <button class="btn btn-sm btn-ghost btn-icon" type="button" data-edit aria-label="Edit"
+                data-id="<%= c._id %>" data-subject="<%= c.subject %>" data-question="<%= c.question %>" data-answer="<%= c.answer %>" data-keywords="<%= (c.keywords || []).join(', ') %>"><%- icon("edit") %></button>
+              <form class="inline-form" action="/admin/flashcards/<%= c._id %>?_method=DELETE" method="POST" data-confirm="This card is removed from the library and from any test that uses it." data-confirm-title="Delete flashcard?" data-confirm-ok="Delete"><input type="hidden" name="back" value="<%= back %>"><button class="btn btn-sm btn-ghost btn-icon" style="color:var(--bad)" aria-label="Delete"><%- icon("trash") %></button></form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table></div>
+  <% } %>
+</div>
+<%- include("includes/pager", { page, pages, href: (n) => url({ page: n }) }) %>
+
+<% if (isSuper && uploads.length) { %>
+  <p class="muted small mt" style="margin-top:18px">Recent uploads: <% uploads.forEach((u, i) => { %><%= i ? " · " : "" %><a href="/admin/uploads/view/<%= u._id %>"><%= u.filename %></a> (<%= u.subject %>)<% }) %> · <a href="/admin/uploads">all uploads</a></p>
+<% } %>
+
+<dialog class="modal modal-wide" id="uploadDlg"><form action="/upload-flashcards" method="POST" enctype="multipart/form-data">
+  <div class="modal-body"><h3>Upload flashcards</h3>
+    <p>Select <b>one or many</b> Excel, CSV or PDF files. Columns: <code>question</code> and <code>answer</code>. <b>Keywords are created automatically</b> from each answer — add a <code>keywords</code> column only if you want to choose them yourself.</p>
+    <div class="field"><label for="us">Subject</label><% if (isSuper) { %><input class="input" id="us" name="subject" list="subjList" required maxlength="80" placeholder="Choose or type a new subject"><% } else { %><select class="select" id="us" name="subject" required><% (mySubjects || []).forEach(x => { %><option value="<%= x %>"><%= x %></option><% }) %></select><% } %><datalist id="subjList"><% subjects.forEach(s => { %><option value="<%= s.subject %>"><% }) %></datalist></div>
+    <label class="check"><input type="checkbox" name="subjectFromFile" value="1" data-disables="#us"><div><b>Use each file's name as its subject</b><span>Handy when you upload a different file per subject, e.g. <code>Biology.pdf</code> → Biology.</span></div></label>
+    <label class="dropzone"><%- icon("upload") %><span><b>Choose files</b> or drop them here</span><span class="muted xs" data-file-name data-default=".xlsx · .xls · .csv · .pdf — up to 20 files, 10 MB each">.xlsx · .xls · .csv · .pdf — up to 20 files, 10 MB each</span><input type="file" name="files" accept=".xlsx,.xls,.csv,.pdf" multiple required></label>
+    <details class="fold small"><summary>PDF formats that work</summary>
+      <div class="stack muted">
+        <p>Text PDFs only (not scans). Any of these layouts:</p>
+        <p><b>1. Labelled blocks</b> (most reliable) — <code>Q: …</code> then <code>A: …</code> (also <code>Question / Answer / Ans</code>, numbered <code>Q1.</code>); optional <code>Keywords: a, b, c</code>. Answers can wrap onto several lines.</p>
+        <p><b>2. A table</b> with <code>Question</code> and <code>Answer</code> header cells (and optionally <code>Keywords</code>). Wrapped cells and repeated headers on every page are fine.</p>
+        <p><b>3. Numbered list</b> — <code>1. question</code> followed by <code>Answer: …</code>.</p>
+      </div></details>
+    <a class="small" href="/admin/template/flashcards"><%- icon("download") %> Download the Excel template</a></div>
+  <div class="modal-foot"><button class="btn btn-ghost" type="button" data-close>Cancel</button><button class="btn btn-primary" type="submit">Upload</button></div></form></dialog>
+
+<dialog class="modal modal-wide" id="cardDlg"><form id="cardForm" action="/admin/flashcards" method="POST">
+  <input type="hidden" name="back" value="<%= back %>">
+  <div class="modal-body"><h3 id="cardTitle">Add a flashcard</h3>
+    <div class="field"><label for="cs">Subject</label><% if (isSuper) { %><input class="input" id="cs" name="subject" list="subjList2" required maxlength="80" value="<%= subject !== 'all' ? subject : '' %>"><% } else { %><select class="select" id="cs" name="subject" required><% (mySubjects || []).forEach(x => { %><option value="<%= x %>" <%= subject === x ? "selected" : "" %>><%= x %></option><% }) %></select><% } %><datalist id="subjList2"><% subjects.forEach(s => { %><option value="<%= s.subject %>"><% }) %></datalist></div>
+    <div class="field"><label for="cq">Question</label><textarea class="textarea" id="cq" name="question" required maxlength="2000" style="min-height:80px"></textarea></div>
+    <div class="field"><label for="ca">Answer</label><textarea class="textarea" id="ca" name="answer" required maxlength="4000" style="min-height:90px"></textarea></div>
+    <div class="field"><label for="ck">Keywords <span class="muted">(automatic — edit only if you want to)</span></label>
+      <div class="row" style="flex-wrap:nowrap"><input class="input grow" id="ck" name="keywords" placeholder="Generated automatically from the answer when you save"><button class="btn btn-sm" type="button" id="kwGen"><%- icon("zap") %>Generate</button></div>
+      <span class="hint" id="kwHint">Marking: ≥ 75% of keywords found = full marks, ≥ 50% = half. Leave empty and they are created for you.</span></div></div>
+  <div class="modal-foot"><button class="btn btn-ghost" type="button" data-close>Cancel</button><button class="btn btn-primary" type="submit">Save</button></div></form></dialog>
+<script>
+(function () {
+  var dlg = document.getElementById("cardDlg"), f = document.getElementById("cardForm"), t = document.getElementById("cardTitle");
+  document.addEventListener("click", function (e) {
+    var n = e.target.closest("[data-new]"), ed = e.target.closest("[data-edit]");
+    if (n) { f.action = "/admin/flashcards"; t.textContent = "Add a flashcard"; ["cq", "ca", "ck"].forEach(function (i) { document.getElementById(i).value = ""; }); }
+    if (ed) {
+      f.action = "/admin/flashcards/" + ed.dataset.id + "?_method=PUT"; t.textContent = "Edit flashcard";
+      document.getElementById("cs").value = ed.dataset.subject; document.getElementById("cq").value = ed.dataset.question;
+      document.getElementById("ca").value = ed.dataset.answer; document.getElementById("ck").value = ed.dataset.keywords;
+      dlg.showModal();
+    }
+  });
+  // live keyword suggestion
+  var ca = document.getElementById("ca"), ck = document.getElementById("ck"), hint = document.getElementById("kwHint"), gen = document.getElementById("kwGen");
+  function suggest(force) {
+    var a = ca.value.trim(); if (!a || (!force && ck.value.trim())) return;
+    fetch("/admin/keywords/preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ answer: a }), credentials: "same-origin" })
+      .then(function (r) { return r.json(); }).then(function (d) {
+        if (d && d.keywords) { ck.value = d.keywords.join(", "); hint.textContent = d.keywords.length + " keyword" + (d.keywords.length === 1 ? "" : "s") + " generated — edit them if you like."; }
+      }).catch(function () {});
+  }
+  gen.addEventListener("click", function () { suggest(true); });
+  ca.addEventListener("blur", function () { suggest(false); });
+})();
+</script>

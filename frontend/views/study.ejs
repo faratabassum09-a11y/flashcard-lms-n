@@ -1,0 +1,79 @@
+<% layout('layouts/boilerplate') %>
+<%
+  const url = (o) => { const p = new URLSearchParams(); const v = Object.assign({ subject, filter }, o || {}); if (v.subject && v.subject !== "all") p.set("subject", v.subject); if (v.filter && v.filter !== "all") p.set("filter", v.filter); const s = p.toString(); return "/flashcards/study" + (s ? "?" + s : ""); };
+%>
+<div class="study">
+  <div class="row-between">
+    <a class="crumb" href="/flashcards"><%- icon("arrow-left") %>All flashcards</a>
+    <div class="chips">
+      <a class="chip <%= filter === 'learning' ? 'is-active' : '' %>" href="<%= url({ filter: 'learning' }) %>">Still learning</a>
+      <a class="chip <%= filter === 'all' ? 'is-active' : '' %>" href="<%= url({ filter: 'all' }) %>">All</a>
+      <a class="chip <%= filter === 'bookmarked' ? 'is-active' : '' %>" href="<%= url({ filter: 'bookmarked' }) %>">Saved</a>
+    </div>
+  </div>
+
+  <% if (!deck.length) { %>
+    <div class="card"><div class="empty">
+      <span class="dot-icon ok"><%- icon("check-circle") %></span>
+      <h3><%= filter === "learning" ? "Nothing left to learn here 🎉" : "No cards to study" %></h3>
+      <p><%= filter === "learning" ? "You've mastered every card in this selection." : "Try a different subject or filter." %></p>
+      <a class="btn btn-primary btn-sm" href="<%= url({ filter: 'all' }) %>">Study everything</a>
+    </div></div>
+  <% } else { %>
+    <div id="studyApp" data-total="<%= deck.length %>">
+      <div class="row-between small" style="margin-bottom:8px"><span><b id="pos">1</b> / <%= deck.length %></span><span class="muted"><span id="knewN">0</span> knew it · <span id="learnN">0</span> still learning</span></div>
+      <div class="bar" id="bar" style="--v:0%"><i></i></div>
+
+      <div class="study-card mt" id="card" tabindex="0" role="button" aria-label="Flip card" style="margin-top:18px">
+        <div class="fc-inner">
+          <div class="fc-face fc-front">
+            <div class="fc-top" style="width:100%"><span class="badge badge-accent" id="subjF"></span><span class="fc-act"><button type="button" id="bmF" aria-label="Save card"><%- icon("bookmark") %></button></span></div>
+            <div class="fc-text" id="qText"></div>
+            <div class="fc-foot" style="width:100%;justify-content:center"><span><%- icon("flip") %> Space to flip</span></div>
+          </div>
+          <div class="fc-face fc-back">
+            <div class="fc-top" style="width:100%"><span class="badge badge-ok">Answer</span><span class="fc-act"><button type="button" id="bmB" aria-label="Save card"><%- icon("bookmark") %></button></span></div>
+            <div class="fc-text" id="aText"></div>
+            <div class="fc-foot" style="width:100%;justify-content:center"><span>Did you get it right?</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="study-controls mt" style="margin-top:18px">
+        <button class="btn btn-lg btn-danger" type="button" id="btnLearn"><%- icon("x") %>Still learning</button>
+        <div class="row" style="flex-wrap:nowrap">
+          <button class="btn btn-icon" type="button" id="btnPrev" aria-label="Previous card"><%- icon("chevron-left") %></button>
+          <button class="btn btn-icon" type="button" id="btnShuffle" aria-label="Shuffle" title="Shuffle (S)"><%- icon("shuffle") %></button>
+          <button class="btn btn-icon" type="button" id="btnNext" aria-label="Next card"><%- icon("chevron-right") %></button>
+        </div>
+        <button class="btn btn-lg btn-ok" type="button" id="btnKnow"><%- icon("check") %>I know it</button>
+      </div>
+
+      <details class="card card-tight fold mt" style="margin-top:18px">
+        <summary><span class="row"><%- icon("edit") %> Test yourself — type your answer</span></summary>
+        <div class="try-box">
+          <textarea class="textarea" id="tryInput" placeholder="Type what you remember, then check how close you are…" style="min-height:90px"></textarea>
+          <div class="row"><button class="btn btn-sm" type="button" id="tryBtn">Check match</button>
+            <div class="try-result" id="tryRes"><div class="bar grow" id="tryBar" style="--v:0%;min-width:120px"><i></i></div><b id="tryPct"></b></div></div>
+        </div>
+      </details>
+
+      <div class="kbd-hints mt" style="margin-top:14px"><span><kbd>Space</kbd> flip</span><span><kbd>←</kbd><kbd>→</kbd> move</span><span><kbd>K</kbd> know it</span><span><kbd>L</kbd> still learning</span><span><kbd>B</kbd> save</span><span><kbd>S</kbd> shuffle</span></div>
+    </div>
+
+    <div class="card" id="summary" hidden>
+      <div class="empty">
+        <span class="dot-icon ok"><%- icon("trophy") %></span>
+        <h3>Round complete!</h3>
+        <p>You knew <b id="sumKnew">0</b> of <%= deck.length %> cards. <span id="sumLearnTxt"></span></p>
+        <div class="row" style="justify-content:center">
+          <a class="btn btn-primary" id="sumAgain" href="<%= url({ filter: 'learning' }) %>"><%- icon("zap") %>Study the rest</a>
+          <button class="btn" type="button" id="sumRestart"><%- icon("flip") %>Restart round</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="application/json" id="deck-data"><%- JSON.stringify(deck).replace(/</g, "\\u003c") %></script>
+    <script src="/js/study.js?v=<%= assetV %>" defer></script>
+  <% } %>
+</div>

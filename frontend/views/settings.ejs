@@ -1,0 +1,36 @@
+<% layout('layouts/boilerplate') %>
+<div class="page-head"><div><h1>Settings</h1><p>Manage how you appear and keep your account secure.</p></div></div>
+
+<div class="grid cols-2">
+  <div class="stack-lg">
+    <section class="card">
+      <div class="card-head"><h2><%- icon("user") %>Profile</h2></div>
+      <form class="stack" action="/update-profile" method="POST">
+        <div class="field"><label>Roll number / username</label><input class="input" value="<%= user.username %>" disabled></div>
+        <div class="field"><label for="displayName">Display name</label>
+          <input class="input" id="displayName" name="displayName" maxlength="40" value="<%= user.displayName || '' %>" placeholder="How you appear on leaderboards">
+          <span class="hint">Leave empty to show your roll number. Max 40 characters.</span></div>
+        <div><button class="btn btn-primary" type="submit">Save changes</button></div>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2><%- icon("sun") %>Appearance</h2></div>
+      <p class="muted small mb">Your choice is remembered on this device.</p>
+      <div class="row"><button class="btn theme-toggle" type="button" data-theme-toggle><%- icon("sun", "i-sun") %><%- icon("moon", "i-moon") %>Switch light / dark theme</button></div>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="card-head"><h2><%- icon("lock") %>Change password</h2></div>
+    <form class="stack" action="/change-password" method="POST">
+      <div class="field"><label for="cur">Current password</label><div class="input-icon"><%- icon("lock") %><input class="input" id="cur" name="currentPassword" type="password" autocomplete="current-password" required></div></div>
+      <div class="field"><label for="np">New password</label>
+        <div class="input-icon"><%- icon("key") %><input class="input" id="np" name="newPassword" type="password" autocomplete="new-password" minlength="6" required data-strength="#meter"><button type="button" class="btn btn-ghost btn-icon btn-sm reveal" data-reveal aria-label="Show password"><%- icon("eye") %></button></div>
+        <div class="strength" id="meter" data-s="0"><i></i><i></i><i></i><i></i></div>
+        <span class="hint">At least 6 characters. Longer with mixed case, numbers and symbols is stronger.</span></div>
+      <div class="field"><label for="cp">Confirm new password</label><div class="input-icon"><%- icon("key") %><input class="input" id="cp" name="confirmPassword" type="password" autocomplete="new-password" minlength="6" required></div></div>
+      <div><button class="btn btn-primary" type="submit">Update password</button></div>
+    </form>
+  </section>
+</div>

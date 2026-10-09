@@ -1,0 +1,25 @@
+<%
+  const _b = (href, exact) => exact ? path === href : (path === href || path.startsWith(href + "/"));
+  const items = isSuper ? [
+    { label: "Home",     href: "/dashboard",      icon: "home", exact: true },
+    { label: "Tests",    href: "/tests",          icon: "file" },
+    { label: "Results",  href: "/admin/results",  icon: "chart" },
+    { label: "Students", href: "/admin/students", icon: "users" }
+  ] : isAdmin ? [
+    { label: "Home",     href: "/dashboard",      icon: "home", exact: true },
+    { label: "New",      href: "/admin",          icon: "plus", exact: true },
+    { label: "Tests",    href: "/tests",          icon: "file" },
+    { label: "Results",  href: "/admin/results",  icon: "chart" }
+  ] : [
+    { label: "Home",   href: "/dashboard",   icon: "home" },
+    { label: "Cards",  href: "/flashcards",  icon: "layers" },
+    { label: "Tests",  href: "/tests",       icon: "file" },
+    { label: "Ranks",  href: "/leaderboard", icon: "trophy" }
+  ];
+%>
+<nav class="bottom-nav" aria-label="Quick navigation">
+  <% items.forEach(l => { %>
+    <a href="<%= l.href %>" class="<%= _b(l.href, l.exact) ? 'is-active' : '' %>"><%- icon(l.icon) %><%= l.label %></a>
+  <% }) %>
+  <button type="button" data-nav-toggle aria-label="More"><%- icon("menu") %>Menu</button>
+</nav>

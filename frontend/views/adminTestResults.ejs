@@ -1,0 +1,83 @@
+<% layout('layouts/boilerplate') %>
+<%
+  const maxBin = Math.max(1, ...summary.bins.map(b => b.count));
+  const st = test.isEnded ? "Ended" : test.isActive ? "Live" : "Scheduled";
+  const notYet = rows.filter(r => !r.attempted).length;
+  const q = (extra) => { const p = new URLSearchParams(); if (section) p.set("section", section); Object.entries(extra || {}).forEach(([k, v]) => p.set(k, v)); const t = p.toString(); return t ? "?" + t : ""; };
+  const secLink = (sec) => "/admin/results/" + test._id + (sec ? "?section=" + encodeURIComponent(sec) : "");
+  const hasSections = sectionStats.some(x => x.section);
+  const scopeLabel = section ? (section === "__none" ? "students without a section" : "section " + section) : (test.sections && test.sections.length ? "section" + (test.sections.length > 1 ? "s " : " ") + test.sections.join(", ") : "all students");
+%>
+<a class="crumb" href="/admin/results"><%- icon("arrow-left") %>All results</a>
+<div class="page-head">
+  <div><h1><%= test.name %></h1><p><%= test.subject || "General" %> · <%= test.duration %> min · <span class="badge <%= st === 'Live' ? 'badge-ok badge-live' : '' %>"><%= st %></span> · for <%= scopeLabel %></p></div>
+  <div class="actions">
+    <a class="btn" href="/admin/results/csv/<%= test._id %><%= q() %>"><%- icon("download") %>CSV<%= section ? " (this section)" : "" %></a>
+    <a class="btn" href="/admin/results/pdf/<%= test._id %><%= q() %>"><%- icon("file") %>PDF<%= section ? " (this section)" : "" %></a>
+    <% if (test.isActive && !test.isEnded) { %><form class="inline-form" action="/admin/end-test/<%= test._id %>" method="POST" data-confirm="Students who have not submitted will not be able to." data-confirm-title="End this test now?" data-confirm-ok="End test"><input type="hidden" name="back" value="/admin/results/<%= test._id %>"><button class="btn btn-danger"><%- icon("stop") %>End test</button></form><% } %>
+  </div>
+</div>
+
+<% if (hasSections) { %>
+<div class="chips chips-scroll mb" aria-label="Sections">
+  <a class="chip <%= !section ? 'is-active' : '' %>" href="<%= secLink('') %>">All <small><%= sectionStats.reduce((a, x) => a + x.students, 0) %></small></a>
+  <% sectionStats.forEach(x => { const key = x.section || "__none"; %><a class="chip <%= section === key ? 'is-active' : '' %>" href="<%= secLink(key) %>"><%= x.section ? "Section " + x.section : "No section" %> <small><%= x.submitted %>/<%= x.students %></small></a><% }) %>
+</div>
+<% } %>
+
+<div class="grid cols-4 mb">
+  <div class="card kpi"><div class="kpi-top">Submitted <span class="kpi-icon"><%- icon("check-circle") %></span></div><div class="kpi-value"><%= summary.count %> <small>/ <%= rows.length %></small></div><div class="kpi-sub"><%= notYet %> not attempted</div></div>
+  <div class="card kpi"><div class="kpi-top">Average <span class="kpi-icon ok"><%- icon("target") %></span></div><div class="kpi-value"><%= fmt.num(summary.avg * 0.2) %><small> / <%= examMax %></small></div><div class="kpi-sub"><%= summary.avg %>% · median <%= fmt.num(summary.median * 0.2) %> / <%= examMax %></div></div>
+  <div class="card kpi"><div class="kpi-top">Highest / lowest <span class="kpi-icon warn"><%- icon("trophy") %></span></div><div class="kpi-value"><%= fmt.num(summary.high * 0.2) %><small> / <%= fmt.num(summary.low * 0.2) %></small></div><div class="kpi-sub">highest / lowest out of <%= examMax %></div></div>
+  <div class="card kpi"><div class="kpi-top">Pass rate (≥ 40%) <span class="kpi-icon info"><%- icon("chart") %></span></div><div class="kpi-value"><%= summary.passRate %><small>%</small></div><div class="kpi-sub">of those who submitted</div></div>
+</div>
+
+<div class="grid cols-2 mb">
+  <section class="card">
+    <div class="card-head"><h2><%- icon("chart") %>Score distribution</h2></div>
+    <% if (!summary.count) { %><div class="empty"><p>No submissions yet.</p></div><% } else { %>
+      <div class="hist"><% summary.bins.forEach(b => { %><div><i style="--h:<%= Math.round(b.count / maxBin * 100) %>%" title="<%= b.from %>–<%= b.to %>%: <%= b.count %> students"></i><% if (b.count) { %><b><%= b.count %></b><% } %></div><% }) %></div>
+      <div class="hist-x"><% summary.bins.forEach(b => { %><span><%= b.from %></span><% }) %></div>
+      <p class="muted xs center mt" style="margin-top:8px">Score % bands · number of students</p>
+    <% } %>
+  </section>
+  <section class="card">
+    <div class="card-head"><h2><%- icon("target") %>Hardest questions</h2></div>
+    <% if (!questions.length) { %><div class="empty"><p>Question analysis appears once students submit (tests taken before this update have no per-question data).</p></div>
+    <% } else { %><div class="list"><% questions.slice(0, 6).forEach(q => { %>
+      <div class="list-item"><div class="grow"><b style="white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden"><%= q.question %></b><div class="bar <%= q.avg >= 75 ? 'ok' : q.avg >= 50 ? 'warn' : 'bad' %>" style="--v:<%= q.avg %>%;margin-top:6px"><i></i></div></div>
+        <div class="right"><b class="tnum"><%= q.avg %>%</b><div class="muted xs"><%= q.fullPct %>% full marks</div></div></div>
+    <% }) %></div><% } %>
+  </section>
+</div>
+
+<% if (hasSections && !section && sectionStats.length > 1) { %>
+<section class="card card-flush mb">
+  <div class="card-head" style="padding:20px 22px 0"><h2><%- icon("users") %>Section-wise summary</h2></div>
+  <div class="table-wrap" style="margin-top:12px"><table class="t">
+    <thead><tr><th>Section</th><th class="num">Students</th><th class="num">Submitted</th><th class="num">Average /<%= examMax %></th><th class="num">Highest /<%= examMax %></th><th></th></tr></thead>
+    <tbody><% sectionStats.forEach(x => { %><tr>
+      <td><b><%= x.section ? "Section " + x.section : "No section" %></b></td><td class="num"><%= x.students %></td><td class="num"><%= x.submitted %></td>
+      <td class="num"><%= x.avg === null ? "—" : fmt.num(x.avg) %></td><td class="num"><%= x.high === null ? "—" : fmt.num(x.high) %></td>
+      <td class="actions"><a class="btn btn-sm btn-ghost" href="<%= secLink(x.section || '__none') %>">Open <%- icon("chevron-right") %></a></td></tr><% }) %></tbody></table></div>
+</section>
+<% } %>
+
+<div class="toolbar mb"><div class="input-icon"><%- icon("search") %><input class="input" type="search" placeholder="Filter students   ( / )" data-search data-filter="#stuRows"></div></div>
+<div class="card card-flush"><div class="table-wrap"><table class="t">
+  <thead><tr><th style="width:70px">Rank</th><th>Student</th><th>Section</th><th class="num">Marks /<%= examMax %></th><th>Grade</th><th>Submitted</th><th></th></tr></thead>
+  <tbody id="stuRows">
+    <% if (!rows.length) { %><tr><td colspan="7"><div class="empty"><p>No students in <%= scopeLabel %> yet.</p></div></td></tr><% } %>
+    <% [...rows].sort((a, b) => (a.rank || 1e9) - (b.rank || 1e9) || a.username.localeCompare(b.username)).forEach(r => { %>
+      <tr>
+        <td><% if (r.rank) { %><span class="rank-badge <%= r.rank <= 3 ? 'top' : '' %>"><%= r.rank %></span><% } else { %><span class="muted">—</span><% } %></td>
+        <td><a href="/admin/students/<%= r.userId %>" style="color:inherit"><b><%= r.username %></b><% if (r.name) { %><span class="muted small" style="display:block"><%= r.name %></span><% } %></a></td>
+        <td><% if (r.section) { %><span class="badge badge-sec"><%= r.section %></span><% } else { %><span class="muted">—</span><% } %></td>
+        <td class="num"><% if (r.attempted) { %><b class="marks-pill"><%= fmt.num(r.written) %><small>/ <%= examMax %></small></b> <span class="muted xs">(<%= Math.round(r.percent) %>%)</span><% } else { %><span class="badge">Not attempted</span><% } %></td>
+        <td><% if (r.grade) { %><span class="badge badge-<%= r.grade.tone %>"><%= r.grade.letter %></span><% } %></td>
+        <td class="muted nowrap"><%= r.attempted ? fmt.dateTime(r.submittedAt) : "" %></td>
+        <td class="actions"><% if (r.attempted) { %><form class="inline-form" action="/admin/results/<%= test._id %>/reset/<%= r.userId %>" method="POST"><input type="hidden" name="back" value="/admin/results/<%= test._id %><%= q() %>"><button class="btn btn-sm btn-ghost" data-confirm="The score for <%= r.username %> is deleted and they can retake the test while it is live." data-confirm-title="Clear this attempt?" data-confirm-ok="Clear attempt"><%- icon("flip") %>Reset</button></form><% } %></td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table></div></div>

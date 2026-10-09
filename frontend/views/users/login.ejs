@@ -1,0 +1,38 @@
+<% layout('layouts/blank') %>
+<div class="auth">
+  <section class="auth-hero" aria-hidden="false">
+    <span class="orb orb-1"></span><span class="orb orb-2"></span><span class="orb orb-3"></span>
+    <a class="brand" href="/login"><span class="brand-mark"><%- icon("layers") %></span><span>FlashPortal<small>Learn · Test · Compete</small></span></a>
+    <div>
+      <h1>Study smarter. <em>Ace every test.</em></h1>
+      <p>Flashcards for every subject, timed tests with instant marks, and a leaderboard that keeps the whole college motivated.</p>
+      <div class="feature-list mt-lg" style="margin-top:28px">
+        <div class="feature"><span class="dot-icon"><%- icon("layers") %></span><div><b>Flashcard study mode</b><span>Flip, shuffle and track what you have mastered.</span></div></div>
+        <div class="feature"><span class="dot-icon ok"><%- icon("clock") %></span><div><b>Timed tests, instant marks</b><span>Auto-marking with a full answer review afterwards.</span></div></div>
+        <div class="feature"><span class="dot-icon warn"><%- icon("trophy") %></span><div><b>Live leaderboard</b><span>See how you rank across tests and subjects.</span></div></div>
+      </div>
+    </div>
+    <span class="muted small">Use the roll number and password given by your college.</span>
+  </section>
+
+  <section class="auth-card-wrap">
+    <div class="auth-top"><button class="btn btn-ghost btn-icon theme-toggle" type="button" data-theme-toggle aria-label="Switch theme"><%- icon("sun", "i-sun") %><%- icon("moon", "i-moon") %></button></div>
+    <div class="auth-card">
+      <a class="brand auth-mobile-brand" href="/login" style="padding:0"><span class="brand-mark"><%- icon("layers") %></span>FlashPortal</a>
+      <div><h2>Welcome back</h2><p class="muted" style="margin-top:6px">Sign in to continue to your dashboard.</p></div>
+
+      <form action="/login" method="POST" class="stack-lg" style="gap:16px">
+        <div class="field">
+          <label for="username">Roll number / username</label>
+          <div class="input-icon"><%- icon("user") %><input class="input" id="username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus placeholder="e.g. 21A91A0501"></div>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <div class="input-icon"><%- icon("lock") %><input class="input" id="password" name="password" type="password" autocomplete="current-password" required placeholder="Your password"><button type="button" class="btn btn-ghost btn-icon btn-sm reveal" data-reveal aria-label="Show password"><%- icon("eye") %></button></div>
+        </div>
+        <button class="btn btn-primary btn-lg btn-block" type="submit">Sign in <%- icon("arrow-right") %></button>
+      </form>
+      <p class="muted small center">Forgot your password? Ask your teacher to reset it for you.</p>
+    </div>
+  </section>
+</div>

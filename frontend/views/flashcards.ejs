@@ -1,0 +1,80 @@
+<% layout('layouts/boilerplate') %>
+<%
+  const url = (o) => {
+    const p = new URLSearchParams();
+    const v = Object.assign({ subject, q, filter, page: 1 }, o || {});
+    if (v.subject && v.subject !== "all") p.set("subject", v.subject);
+    if (v.q) p.set("q", v.q);
+    if (v.filter && v.filter !== "all") p.set("filter", v.filter);
+    if (v.page > 1) p.set("page", v.page);
+    const s = p.toString(); return "/flashcards" + (s ? "?" + s : "");
+  };
+  const studyUrl = (() => { const p = new URLSearchParams(); if (subject !== "all") p.set("subject", subject); if (filter !== "all") p.set("filter", filter); const s = p.toString(); return "/flashcards/study" + (s ? "?" + s : ""); })();
+  const masteredPct = totalCards ? Math.round(masteredCount / totalCards * 100) : 0;
+%>
+<div class="page-head">
+  <div>
+    <h1>Flashcards</h1>
+    <p><%= totalCards %> cards across <%= subjects.length %> subject<%= subjects.length === 1 ? "" : "s" %> · <b><%= masteredCount %></b> mastered</p>
+  </div>
+  <div class="actions">
+    <a class="btn btn-primary" href="<%= studyUrl %>"><%- icon("zap") %>Study these <%= total %></a>
+  </div>
+</div>
+
+<div class="card card-tight mb">
+  <div class="row-between small"><span class="muted">Overall progress</span><span><b id="masteredCount"><%= masteredCount %></b> of <%= totalCards %> mastered</span></div>
+  <div class="bar ok" style="--v:<%= masteredPct %>%;margin-top:10px"><i></i></div>
+</div>
+
+<form class="toolbar mb" method="GET" action="/flashcards" role="search">
+  <div class="input-icon"><%- icon("search") %><input class="input" type="search" name="q" value="<%= q %>" placeholder="Search questions and answers   ( / )" data-search aria-label="Search flashcards"></div>
+  <select class="select" name="subject" data-autosubmit aria-label="Subject">
+    <option value="all">All subjects</option>
+    <% subjects.forEach(s => { %><option value="<%= s.subject %>" <%= s.subject === subject ? "selected" : "" %>><%= s.subject %> (<%= s.count %>)</option><% }) %>
+  </select>
+  <% if (filter !== "all") { %><input type="hidden" name="filter" value="<%= filter %>"><% } %>
+  <button class="btn" type="submit">Search</button>
+  <% if (q || subject !== "all" || filter !== "all") { %><a class="btn btn-ghost" href="/flashcards">Clear</a><% } %>
+</form>
+
+<div class="chips mb" role="tablist" aria-label="Filter cards">
+  <a class="chip <%= filter === 'all' ? 'is-active' : '' %>" href="<%= url({ filter: 'all' }) %>">All</a>
+  <a class="chip <%= filter === 'learning' ? 'is-active' : '' %>" href="<%= url({ filter: 'learning' }) %>"><%- icon("flip") %>Still learning</a>
+  <a class="chip <%= filter === 'mastered' ? 'is-active' : '' %>" href="<%= url({ filter: 'mastered' }) %>"><%- icon("check-circle") %>Mastered <small><%= masteredCount %></small></a>
+  <a class="chip <%= filter === 'bookmarked' ? 'is-active' : '' %>" href="<%= url({ filter: 'bookmarked' }) %>"><%- icon("bookmark") %>Saved <small><%= bookmarkCount %></small></a>
+</div>
+
+<% if (!cards.length) { %>
+  <div class="card"><div class="empty">
+    <span class="dot-icon"><%- icon("layers") %></span>
+    <h3><%= totalCards ? "No cards match" : "No flashcards yet" %></h3>
+    <p><%= totalCards ? "Try a different search or filter." : "Your teacher hasn't uploaded any flashcards yet. Check back soon." %></p>
+    <% if (totalCards) { %><a class="btn btn-sm" href="/flashcards">Show all cards</a><% } %>
+  </div></div>
+<% } else { %>
+  <div class="fc-grid" id="cards">
+    <% cards.forEach(c => { %>
+      <article class="fc <%= c.known ? 'is-known' : '' %>" data-id="<%= c._id %>" tabindex="0" role="button" aria-label="Flip card: <%= c.question %>">
+        <div class="fc-inner">
+          <div class="fc-face fc-front">
+            <div class="fc-top"><span class="badge badge-accent"><%= c.subject %></span><span class="fc-act">
+              <button type="button" data-act="bookmark" class="<%= c.bookmarked ? 'on' : '' %>" aria-label="Save card" title="Save"><%- icon("bookmark") %></button>
+              <button type="button" data-act="known" class="known <%= c.known ? 'on' : '' %>" aria-label="Mark as mastered" title="Mastered"><%- icon("check-circle") %></button></span></div>
+            <div class="fc-text"><%= c.question %></div>
+            <div class="fc-foot"><span>Question</span><span><%- icon("flip") %> tap to flip</span></div>
+          </div>
+          <div class="fc-face fc-back">
+            <div class="fc-top"><span class="badge badge-ok">Answer</span><span class="fc-act">
+              <button type="button" data-act="bookmark" class="<%= c.bookmarked ? 'on' : '' %>" aria-label="Save card" title="Save"><%- icon("bookmark") %></button>
+              <button type="button" data-act="known" class="known <%= c.known ? 'on' : '' %>" aria-label="Mark as mastered" title="Mastered"><%- icon("check-circle") %></button></span></div>
+            <div class="fc-text"><%= c.answer %></div>
+            <div class="fc-foot"><span><%= c.subject %></span><span><%- icon("flip") %> tap to flip back</span></div>
+          </div>
+        </div>
+      </article>
+    <% }) %>
+  </div>
+  <%- include("includes/pager", { page, pages, href: (n) => url({ page: n }) }) %>
+<% } %>
+<script src="/js/cards.js?v=<%= assetV %>" defer></script>

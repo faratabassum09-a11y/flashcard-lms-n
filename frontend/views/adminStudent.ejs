@@ -1,0 +1,33 @@
+<% layout('layouts/boilerplate') %>
+<a class="crumb" href="/admin/students"><%- icon("arrow-left") %>All students</a>
+<div class="card mb">
+  <div class="profile-hero">
+    <span class="avatar avatar-lg"><%= fmt.initials(student.displayName || student.username) %></span>
+    <div class="grow"><h1><%= student.username %></h1><p class="muted"><%= student.displayName ? student.displayName + " · " : "" %>joined <%= fmt.date(student.createdAt) %> · <%= results.length %> test<%= results.length === 1 ? "" : "s" %> · avg <b><%= fmt.num(avg20) %> / 20</b> (<%= avg %>%) · <%= mastered %> cards mastered</p>
+      <p style="margin-top:6px"><% if (student.section) { %><span class="badge badge-sec">Section <%= student.section %></span><% } else { %><span class="badge">No section</span><% } %> <button class="btn btn-sm btn-ghost" type="button" data-open="#secDlg"><%- icon("edit") %>Change section</button></p></div>
+    <div class="row"><button class="btn" type="button" data-open="#pwDlg"><%- icon("key") %>Reset password</button>
+      <form class="inline-form" action="/admin/students/<%= student._id %>?_method=DELETE" method="POST" data-confirm="Deletes <%= student.username %> and all results." data-confirm-title="Delete student?" data-confirm-ok="Delete"><button class="btn btn-danger"><%- icon("trash") %>Delete</button></form></div>
+  </div>
+</div>
+<div class="card card-flush">
+  <div class="card-head" style="padding:20px 22px 0"><h2><%- icon("chart") %>Results</h2></div>
+  <% if (!results.length) { %><div class="empty"><span class="dot-icon"><%- icon("file") %></span><h3>No attempts yet</h3></div>
+  <% } else { %><div class="table-wrap" style="margin-top:12px"><table class="t">
+    <thead><tr><th>Test</th><th class="num">Marks /20</th><th>Grade</th><th>Submitted</th><th></th></tr></thead>
+    <tbody><% results.forEach(r => { %><tr>
+      <td><b><%= r.testId ? r.testId.name : "Deleted test" %></b><span class="muted small" style="display:block"><%= r.testId ? r.testId.subject : "" %></span></td>
+      <td class="num"><b><%= fmt.num(r.written) %></b> <span class="muted">(<%= Math.round(r.percent) %>%)</span></td>
+      <td><span class="badge badge-<%= r.grade.tone %>"><%= r.grade.letter %></span></td>
+      <td class="muted nowrap"><%= fmt.dateTime(r.submittedAt) %></td>
+      <td class="actions"><% if (r.testId) { %><form class="inline-form" action="/admin/results/<%= r.testId._id %>/reset/<%= student._id %>" method="POST"><input type="hidden" name="back" value="/admin/students/<%= student._id %>"><button class="btn btn-sm btn-ghost" data-confirm="The score is deleted and the student can retake the test while it is live." data-confirm-title="Clear this attempt?" data-confirm-ok="Clear attempt"><%- icon("flip") %>Reset</button></form><% } %></td>
+    </tr><% }) %></tbody></table></div><% } %>
+</div>
+<dialog class="modal" id="pwDlg"><form action="/admin/students/<%= student._id %>/reset-password" method="POST">
+  <div class="modal-body"><h3>Reset password</h3><p>Set a new password for <b><%= student.username %></b>. Tell them to change it in Settings.</p>
+    <div class="field"><label for="rp">New password</label><input class="input" id="rp" name="newPassword" required minlength="6" autocomplete="off"></div></div>
+  <div class="modal-foot"><button class="btn btn-ghost" type="button" data-close>Cancel</button><button class="btn btn-primary" type="submit">Reset password</button></div></form></dialog>
+<dialog class="modal" id="secDlg"><form action="/admin/students/<%= student._id %>/section" method="POST">
+  <div class="modal-body"><h3>Section</h3><p>Which class section is <b><%= student.username %></b> in? Leave empty to remove the section.</p>
+    <div class="field"><label for="sc">Section</label><input class="input" id="sc" name="section" list="secList" maxlength="20" autocomplete="off" value="<%= student.section || '' %>" placeholder="e.g. A">
+      <datalist id="secList"><% sections.list.forEach(sc => { %><option value="<%= sc.section %>"><% }) %></datalist></div></div>
+  <div class="modal-foot"><button class="btn btn-ghost" type="button" data-close>Cancel</button><button class="btn btn-primary" type="submit">Save</button></div></form></dialog>

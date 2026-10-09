@@ -1,0 +1,55 @@
+<%
+  const _on = (href, exact) => exact ? path === href : (path === href || path.startsWith(href + "/"));
+  const links = isSuper ? [
+    { label: "Overview",   href: "/dashboard",       icon: "home",      exact: true },
+    { label: "Tests",      href: "/tests",           icon: "file" },
+    { label: "Results",    href: "/admin/results",   icon: "chart" },
+    { label: "Students",   href: "/admin/students",  icon: "users" },
+    { label: "Teachers",   href: "/admin/teachers",  icon: "user" },
+    { label: "Flashcards", href: "/admin/flashcards",icon: "layers" },
+    { label: "Manage",     href: "/admin",           icon: "sliders",   exact: true },
+    { label: "Uploads",    href: "/admin/uploads",   icon: "folder" }
+  ] : isAdmin ? [
+    { label: "Overview",    href: "/dashboard",       icon: "home",   exact: true },
+    { label: "New test",    href: "/admin",           icon: "plus",   exact: true },
+    { label: "My tests",    href: "/tests",           icon: "file" },
+    { label: "Results",     href: "/admin/results",   icon: "chart" },
+    { label: "Flashcards",  href: "/admin/flashcards",icon: "layers" },
+    { label: "Leaderboard", href: "/leaderboard",     icon: "trophy" }
+  ] : [
+    { label: "Dashboard",  href: "/dashboard",       icon: "home" },
+    { label: "Flashcards", href: "/flashcards",      icon: "layers" },
+    { label: "Tests",      href: "/tests",           icon: "file" },
+    { label: "Leaderboard",href: "/leaderboard",     icon: "trophy" }
+  ];
+  const shownName = (currUser.displayName || currUser.username);
+%>
+<aside class="sidebar" id="sidebar" aria-label="Main navigation">
+  <a class="brand" href="/dashboard">
+    <span class="brand-mark"><%- icon("layers") %></span>
+    <span>FlashPortal<small><%= isSuper ? "Admin console" : isAdmin ? "Teacher console" : "Student portal" %></small></span>
+  </a>
+
+  <div class="nav-label"><%= isSuper ? "Administration" : isAdmin ? "Teaching" : "Learn" %></div>
+  <% links.forEach(l => { %>
+    <a class="nav-link <%= _on(l.href, l.exact) ? 'is-active' : '' %>" href="<%= l.href %>" <%- _on(l.href, l.exact) ? 'aria-current="page"' : '' %>><%- icon(l.icon) %><%= l.label %></a>
+  <% }) %>
+
+  <% if (!isAdmin) { %>
+    <div class="nav-label">Study</div>
+    <a class="nav-link <%= path === '/flashcards/study' ? 'is-active' : '' %>" href="/flashcards/study?filter=learning"><%- icon("zap") %>Study mode</a>
+    <a class="nav-link" href="/flashcards?filter=bookmarked"><%- icon("bookmark") %>Saved cards</a>
+  <% } %>
+
+  <div class="sidebar-foot">
+    <div class="row-between">
+      <a class="nav-link <%= _on('/settings') ? 'is-active' : '' %>" href="/settings" style="flex:1"><%- icon("sliders") %>Settings</a>
+      <button class="btn btn-ghost btn-icon theme-toggle" type="button" data-theme-toggle aria-label="Switch theme"><%- icon("sun", "i-sun") %><%- icon("moon", "i-moon") %></button>
+    </div>
+    <a class="me" href="/profile">
+      <span class="avatar"><%= fmt.initials(shownName) %></span>
+      <span class="grow"><span class="me-name" style="display:block"><%= shownName %></span><span class="me-role"><%= isSuper ? "Administrator" : isAdmin ? "Teacher" : (currUser.displayName ? currUser.username : "Student") %></span></span>
+    </a>
+    <form action="/logout" method="POST" data-no-loading><button class="btn btn-signout btn-block" type="submit"><%- icon("logout") %>Sign out</button></form>
+  </div>
+</aside>

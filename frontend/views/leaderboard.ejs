@@ -1,0 +1,69 @@
+<% layout('layouts/boilerplate') %>
+<%
+  const top3 = (!selected || true) && rows.length >= 3 ? rows.slice(0, 3) : [];
+  const rest = top3.length ? rows.slice(3) : rows;
+  const bandTone = (p) => p >= 75 ? "ok" : p >= 50 ? "warn" : "bad";
+%>
+<div class="page-head">
+  <div><h1>Leaderboard</h1><p><%= selected ? selected.name + (selected.subject ? " · " + selected.subject : "") : "Overall standing across every test" %><%= sec ? " · Section " + sec : "" %> · <%= participants %> student<%= participants === 1 ? "" : "s" %></p></div>
+  <form class="actions" method="GET" action="/leaderboard">
+    <% if (isAdmin ? sections.length : mySection) { %>
+      <select class="select" name="sec" data-autosubmit aria-label="Choose section">
+        <option value="">Everyone</option>
+        <% if (!isAdmin) { %><option value="mine" <%= sec ? "selected" : "" %>>My section (<%= mySection %>)</option>
+        <% } else { sections.forEach(sc => { %><option value="<%= sc.section %>" <%= sec === sc.section ? "selected" : "" %>>Section <%= sc.section %></option><% }) } %>
+      </select>
+    <% } %>
+    <select class="select" name="test" data-autosubmit aria-label="Choose leaderboard">
+      <option value="">Overall (all tests)</option>
+      <% endedTests.forEach(t => { %><option value="<%= t._id %>" <%= selected && String(selected._id) === String(t._id) ? "selected" : "" %>><%= t.name %><%= t.subject ? " · " + t.subject : "" %></option><% }) %>
+    </select>
+  </form>
+</div>
+
+<% if (mine) { %>
+  <div class="card mb row-between" style="background:linear-gradient(135deg,var(--accent-soft),transparent),var(--surface)">
+    <div class="row"><span class="rank-badge top" style="width:46px;height:46px;font-size:1.05rem">#<%= mine.rank %></span><div><b>Your position</b><div class="muted small"><%= Math.round(mine.percent) %>% · <%= mine.tests > 1 ? mine.tests + " tests" : "1 test" %></div></div></div>
+    <a class="btn btn-sm" href="/profile">My profile</a>
+  </div>
+<% } else if (!selected) { %>
+  <div class="alert mb"><%- icon("info") %><div>You'll appear here after you submit your first test.</div></div>
+<% } %>
+
+<% if (!rows.length) { %>
+  <div class="card"><div class="empty"><span class="dot-icon warn"><%- icon("trophy") %></span><h3>No scores yet</h3><p>The leaderboard fills up as students submit tests.</p></div></div>
+<% } else { %>
+  <% if (top3.length) { const order = [1, 0, 2]; %>
+    <div class="podium" aria-label="Top three">
+      <% order.forEach(idx => { const r = top3[idx]; %>
+        <div class="pod r<%= idx + 1 %>">
+          <span class="medal"><%= idx + 1 %></span>
+          <span class="avatar <%= idx === 0 ? 'avatar-lg' : '' %>" style="<%= idx === 0 ? 'width:64px;height:64px;font-size:1.3rem' : '' %>"><%= fmt.initials(r.name) %></span>
+          <b class="truncate" style="max-width:100%"><%= r.name %><% if (r.isMe) { %> <span class="badge badge-accent">You</span><% } %></b>
+          <span class="pct"><%= Math.round(r.percent) %>%</span>
+          <span class="muted xs"><%= fmt.num(r.percent * 0.2) %> / 20<%= selected ? "" : " avg" %></span>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+
+  <% if (rest.length) { %>
+    <div class="card card-flush"><div class="table-wrap">
+      <table class="t">
+        <thead><tr><th style="width:70px">Rank</th><th>Student</th><th class="num">Marks</th><% if (!selected) { %><th class="num">Tests</th><% } %><th style="min-width:160px">Score</th></tr></thead>
+        <tbody>
+          <% rest.forEach(r => { %>
+            <tr class="<%= r.isMe ? 'is-me' : '' %>">
+              <td><span class="rank-badge"><%= r.rank %></span></td>
+              <td><div class="row" style="flex-wrap:nowrap"><span class="avatar avatar-sm"><%= fmt.initials(r.name) %></span><b><%= r.name %></b><% if (r.isMe) { %><span class="badge badge-accent">You</span><% } %></div></td>
+              <td class="num"><%= fmt.num(r.percent * 0.2) %> / 20<%= selected ? "" : " avg" %></td>
+              <% if (!selected) { %><td class="num"><%= r.tests %></td><% } %>
+              <td><div class="row" style="flex-wrap:nowrap"><div class="bar <%= bandTone(r.percent) %> grow" style="--v:<%= r.percent %>%"><i></i></div><b class="tnum" style="width:44px;text-align:right"><%= Math.round(r.percent) %>%</b></div></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div></div>
+  <% } %>
+  <p class="muted xs center mt" style="margin-top:14px">Names shown are display names where set. You can change yours in <a href="/settings">Settings</a>.</p>
+<% } %>

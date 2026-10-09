@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title><%= typeof title !== "undefined" && title ? title + " · FlashPortal" : "FlashPortal" %></title>
+  <meta name="theme-color" content="#070914">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%237b82ff'/%3E%3Cpath d='m16 7 9 5-9 5-9-5z' fill='%23fff'/%3E%3Cpath d='m7 17 9 5 9-5' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem("theme");
+        if (t !== "dark" && t !== "light") t = "dark";      /* dark by default; the toggle remembers a choice */
+        document.documentElement.setAttribute("data-theme", t);
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="stylesheet" href="/css/style.css?v=<%= assetV %>">
+  <script src="/js/app.js?v=<%= assetV %>" defer></script>
+</head>
+<body class="<%= typeof bodyClass !== 'undefined' ? bodyClass : '' %>">
+  <%- sprite %>
+  <%- body %>
+  <%- include("../includes/flash") %>
+</body>
+</html>

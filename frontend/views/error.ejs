@@ -1,0 +1,12 @@
+<% layout('layouts/boilerplate') %>
+<div class="error-page">
+  <div class="stack" style="justify-items:center">
+    <div class="error-code"><%= err.statusCode || 500 %></div>
+    <h1><%= (err.statusCode || 500) === 404 ? "We couldn't find that page" : "Something went wrong" %></h1>
+    <p class="muted" style="max-width:420px"><%= err.message %></p>
+    <div class="row" style="justify-content:center">
+      <a class="btn btn-primary" href="/dashboard"><%- icon("home") %>Back to dashboard</a>
+      <a class="btn" href="javascript:history.back()"><%- icon("arrow-left") %>Go back</a>
+    </div>
+  </div>
+</div>

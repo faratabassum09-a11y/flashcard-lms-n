@@ -1,0 +1,182 @@
+<% layout('layouts/boilerplate') %>
+<%
+  const shown = currUser.displayName || username;
+  const hr = Number(new Intl.DateTimeFormat("en-GB", { timeZone: process.env.TZ || "Asia/Kolkata", hour: "numeric", hour12: false }).format(new Date()));
+  const greet = hr < 12 ? "Good morning" : hr < 17 ? "Good afternoon" : "Good evening";
+  const endsAt = (t) => t.startTime ? new Date(new Date(t.startTime).getTime() + t.duration * 60000) : null;
+%>
+
+<div class="page-head">
+  <div class="hello">
+    <div>
+      <h1><%= greet %>, <span><%= shown.split(" ")[0] %></span> 👋</h1>
+      <p><%= fmt.date(new Date()) %> · <%= isSuper ? "Here is what's happening across the college." : isAdmin ? "Here is what's happening in your tests." : "Pick up where you left off." %></p>
+    </div>
+  </div>
+  <div class="actions">
+    <% if (isAdmin) { %>
+      <a class="btn btn-primary" href="/admin#create"><%- icon("plus") %>New test</a>
+      <% if (isSuper) { %><a class="btn" href="/admin/students"><%- icon("users") %>Students</a><% } else { %><a class="btn" href="/admin/results"><%- icon("chart") %>Results</a><% } %>
+    <% } else { %>
+      <a class="btn btn-primary" href="/flashcards/study?filter=learning"><%- icon("zap") %>Start studying</a>
+      <a class="btn" href="/tests"><%- icon("file") %>All tests</a>
+    <% } %>
+  </div>
+</div>
+
+<% if (announcements && announcements.length) { %>
+  <section class="mb" aria-label="Announcements">
+    <% announcements.forEach(a => { %>
+      <div class="announce">
+        <span class="dot-icon"><%- icon("megaphone") %></span>
+        <div class="grow"><b><%= a.title %></b><% if (a.body) { %><p><%= a.body %></p><% } %><time><%= fmt.ago(a.createdAt) %><%= a.pinned ? " · pinned" : "" %></time></div>
+      </div>
+    <% }) %>
+  </section>
+<% } %>
+
+<% if (isAdmin) { %>
+  <!-- ═════════ ADMIN OVERVIEW ═════════ -->
+  <div class="grid cols-4 mb">
+    <div class="card kpi"><div class="kpi-top">Students <span class="kpi-icon"><%- icon("users") %></span></div><div class="kpi-value"><%= stats.totalStudents %></div><div class="kpi-sub"><%= stats.sectionList && stats.sectionList.length ? stats.sectionList.length + " section" + (stats.sectionList.length === 1 ? "" : "s") : "registered accounts" %></div></div>
+    <div class="card kpi"><div class="kpi-top">Live tests <span class="kpi-icon ok"><%- icon("play") %></span></div><div class="kpi-value"><%= stats.activeTests %> <small>of <%= stats.totalTests %></small></div><div class="kpi-sub">running right now</div></div>
+    <div class="card kpi"><div class="kpi-top">Submissions · 24h <span class="kpi-icon info"><%- icon("check-circle") %></span></div><div class="kpi-value"><%= stats.submissions24h %></div><div class="kpi-sub">tests handed in</div></div>
+    <div class="card kpi"><div class="kpi-top">Flashcards <span class="kpi-icon warn"><%- icon("layers") %></span></div><div class="kpi-value"><%= stats.totalFlashcards %></div><div class="kpi-sub">in the library</div></div>
+  </div>
+
+  <div class="grid cols-main">
+    <section class="card">
+      <div class="card-head"><h2><%- icon("file") %>Live &amp; upcoming tests</h2><a class="card-link" href="/tests">Manage <%- icon("chevron-right") %></a></div>
+      <% if (!stats.upcomingTests.length) { %>
+        <div class="empty"><span class="dot-icon"><%- icon("file") %></span><h3>No tests scheduled</h3><p>Create a test from your flashcards and schedule it.</p><a class="btn btn-primary btn-sm" href="/admin#create">Create a test</a></div>
+      <% } else { %>
+        <div class="list">
+          <% stats.upcomingTests.forEach(t => { const pctDone = t.audience ? Math.min(100, Math.round(t.attempted / t.audience * 100)) : 0; %>
+            <div class="list-item">
+              <span class="dot-icon <%= t.isActive ? 'ok' : '' %>"><%- icon(t.isActive ? "play" : "clock") %></span>
+              <div class="grow">
+                <b><%= t.name %></b>
+                <span class="muted small"><%= t.subject || "General" %> · <%= t.duration %> min<% if (!t.isActive && t.scheduledStart) { %> · starts <%= fmt.dateTime(t.scheduledStart) %><% } %></span>
+                <% if (t.isActive) { %><div class="bar ok mt" style="--v:<%= pctDone %>%;margin-top:8px"><i></i></div><span class="xs muted"><%= t.attempted %> / <%= t.audience %> submitted</span><% } %>
+              </div>
+              <% if (t.isActive) { %><span class="badge badge-ok badge-live">Live</span><% } else { %><span class="badge">Scheduled</span><% } %>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2><%- icon("check-circle") %>Recent submissions</h2><a class="card-link" href="/admin/results">All results <%- icon("chevron-right") %></a></div>
+      <% if (!stats.recent.length) { %>
+        <div class="empty"><span class="dot-icon"><%- icon("chart") %></span><h3>Nothing yet</h3><p>Submissions will appear here as students finish tests.</p></div>
+      <% } else { %>
+        <div class="list">
+          <% stats.recent.forEach(r => { const p = r.total ? Math.round(r.score / r.total * 100) : 0; %>
+            <div class="list-item">
+              <span class="avatar avatar-sm"><%= fmt.initials(r.userId ? (r.userId.displayName || r.userId.username) : "?") %></span>
+              <div class="grow"><b><%= r.userId ? (r.userId.displayName || r.userId.username) : "Deleted user" %></b><span class="muted xs"><%= r.testId ? r.testId.name : "Deleted test" %> · <%= fmt.ago(r.submittedAt) %></span></div>
+              <span class="badge <%= p >= 75 ? 'badge-ok' : p >= 40 ? 'badge-warn' : 'badge-bad' %> tnum"><%= fmt.num(fmt.scaled(r.score, r.total)) %>/20</span>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+    </section>
+  </div>
+
+  <div class="grid cols-3 mt">
+    <a class="card card-interactive row" href="/admin#create" style="color:inherit;text-decoration:none"><span class="dot-icon"><%- icon("plus") %></span><div><b>Create a test</b><div class="muted small">Pick questions &amp; schedule</div></div></a>
+    <a class="card card-interactive row" href="/admin/flashcards" style="color:inherit;text-decoration:none"><span class="dot-icon ok"><%- icon("upload") %></span><div><b>Upload flashcards</b><div class="muted small">Excel in, flashcards out</div></div></a>
+    <% if (isSuper) { %><a class="card card-interactive row" href="/admin#announcements" style="color:inherit;text-decoration:none"><span class="dot-icon warn"><%- icon("megaphone") %></span><div><b>Post an announcement</b><div class="muted small">Shown on every dashboard</div></div></a>
+    <% } else { %><a class="card card-interactive row" href="/admin/results" style="color:inherit;text-decoration:none"><span class="dot-icon warn"><%- icon("chart") %></span><div><b>See results</b><div class="muted small">Marks of your students</div></div></a><% } %>
+  </div>
+
+<% } else { %>
+  <!-- ═════════ STUDENT DASHBOARD ═════════ -->
+  <%
+    const g = (p) => p >= 90 ? "A+" : p >= 80 ? "A" : p >= 70 ? "B" : p >= 60 ? "C" : p >= 50 ? "D" : p >= 40 ? "E" : "F";
+    const masteredPct = stats.totalFlashcards ? Math.round(stats.mastered / stats.totalFlashcards * 100) : 0;
+  %>
+  <div class="grid cols-4 mb">
+    <div class="card kpi"><div class="kpi-top">Tests taken <span class="kpi-icon"><%- icon("file") %></span></div><div class="kpi-value"><%= stats.totalTests %></div><div class="kpi-sub">avg <%= fmt.num(stats.avg20) %> / 20 per test</div></div>
+    <div class="card kpi"><div class="kpi-top">Average score <span class="kpi-icon ok"><%- icon("target") %></span></div><div class="kpi-value"><%= fmt.num(stats.avg20) %><small> / 20</small></div><div class="kpi-sub"><%= stats.totalTests ? "Grade " + g(stats.avgScore) : "Take a test to get a grade" %></div></div>
+    <div class="card kpi"><div class="kpi-top">College rank <span class="kpi-icon warn"><%- icon("trophy") %></span></div><div class="kpi-value"><%= stats.rank ? "#" + stats.rank : "—" %> <% if (stats.rank) { %><small>of <%= stats.ranked %></small><% } %></div><div class="kpi-sub"><a href="/leaderboard">View leaderboard</a></div></div>
+    <div class="card kpi"><div class="kpi-top">Cards mastered <span class="kpi-icon info"><%- icon("layers") %></span></div><div class="kpi-value"><%= stats.mastered %> <small>/ <%= stats.totalFlashcards %></small></div><div class="bar mt" style="--v:<%= masteredPct %>%;margin-top:6px"><i></i></div></div>
+  </div>
+
+  <div class="grid cols-main">
+    <div class="stack-lg">
+      <section class="card">
+        <div class="card-head"><h2><%- icon("play") %>Tests for you</h2><a class="card-link" href="/tests">See all <%- icon("chevron-right") %></a></div>
+        <% if (!stats.available.length) { %>
+          <div class="empty"><span class="dot-icon ok"><%- icon("check-circle") %></span><h3>You're all caught up</h3><p>No open tests right now. Use the time to master a few more flashcards.</p><a class="btn btn-primary btn-sm" href="/flashcards/study?filter=learning">Study now</a></div>
+        <% } else { %>
+          <div class="list">
+            <% stats.available.forEach(t => { const live = t.isActive; const end = endsAt(t); %>
+              <div class="list-item">
+                <span class="dot-icon <%= live ? 'ok' : '' %>"><%- icon(live ? "play" : "clock") %></span>
+                <div class="grow">
+                  <b><%= t.name %></b>
+                  <span class="muted small"><%= t.subject || "General" %> · <%= t.duration %> min</span>
+                  <% if (live && end) { %><span class="small ok" style="display:block"><%- icon("clock") %> <span class="countdown" data-countdown="<%= fmt.iso(end) %>" data-mode="left">…</span> left</span>
+                  <% } else if (!live && t.scheduledStart) { %><span class="small muted" style="display:block">Starts in <span class="countdown" data-countdown="<%= fmt.iso(t.scheduledStart) %>">…</span> · <%= fmt.dateTime(t.scheduledStart) %></span><% } %>
+                </div>
+                <% if (live) { %><a class="btn btn-primary btn-sm" href="/test/<%= t._id %>">Start <%- icon("arrow-right") %></a><% } else { %><span class="badge">Upcoming</span><% } %>
+              </div>
+            <% }) %>
+          </div>
+        <% } %>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2><%- icon("chart") %>Score trend</h2><span class="muted small">last <%= stats.trend.length %> tests</span></div>
+        <% if (stats.trend.length < 2) { %>
+          <div class="empty"><span class="dot-icon"><%- icon("chart") %></span><h3>Your progress chart appears here</h3><p>Complete at least two tests to see how your scores are trending.</p></div>
+        <% } else {
+          const W = 600, H = 190, L = 34, R = 14, T = 14, B = 28, n = stats.trend.length;
+          const x = (i) => L + (n === 1 ? 0 : i * (W - L - R) / (n - 1));
+          const y = (p) => T + (100 - p) * (H - T - B) / 100;
+          const pts = stats.trend.map((d, i) => [x(i), y(d.percent)]);
+          const line = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+          const area = line + " L" + x(n - 1).toFixed(1) + " " + (H - B) + " L" + x(0).toFixed(1) + " " + (H - B) + " Z";
+        %>
+          <svg class="chart" viewBox="0 0 <%= W %> <%= H %>" role="img" aria-label="Score percentage across your last tests" preserveAspectRatio="none">
+            <defs><linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".35"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
+            <% [0, 25, 50, 75, 100].forEach(v => { %><line class="grid-line" x1="<%= L %>" x2="<%= W - R %>" y1="<%= y(v) %>" y2="<%= y(v) %>"/><text class="axis" x="<%= L - 8 %>" y="<%= y(v) + 3 %>" text-anchor="end"><%= v %></text><% }) %>
+            <path class="area" d="<%= area %>"/><path class="line" d="<%= line %>"/>
+            <% pts.forEach((p, i) => { %><circle class="dot" cx="<%= p[0] %>" cy="<%= p[1] %>" r="4.5"><title><%= stats.trend[i].label %>: <%= stats.trend[i].percent %>%</title></circle><% }) %>
+          </svg>
+        <% } %>
+      </section>
+    </div>
+
+    <div class="stack-lg">
+      <section class="card">
+        <div class="card-head"><h2><%- icon("check-circle") %>Recent results</h2><a class="card-link" href="/profile">History <%- icon("chevron-right") %></a></div>
+        <% if (!stats.recentResults.length) { %>
+          <div class="empty"><span class="dot-icon"><%- icon("file") %></span><h3>No results yet</h3><p>Your marks will show up here after your first test.</p></div>
+        <% } else { %>
+          <div class="list">
+            <% stats.recentResults.forEach(r => { const p = r.total ? Math.round(r.score / r.total * 100) : 0; %>
+              <a class="list-item" href="/result/<%= r.testId ? r.testId._id : '' %>" style="color:inherit;text-decoration:none">
+                <span class="dot-icon <%= p >= 75 ? 'ok' : p >= 40 ? 'warn' : 'bad' %>"><b><%= g(p) %></b></span>
+                <div class="grow"><b><%= r.testId ? r.testId.name : "Deleted test" %></b><span class="muted xs"><%= r.testId ? (r.testId.subject || "") + " · " : "" %><%= fmt.ago(r.submittedAt) %></span></div>
+                <span class="tnum"><b><%= fmt.num(fmt.scaled(r.score, r.total)) %></b><span class="muted">/20</span></span>
+              </a>
+            <% }) %>
+          </div>
+        <% } %>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2><%- icon("book") %>Your study progress</h2></div>
+        <div class="row-between small"><span><b><%= masteredPct %>%</b> mastered</span><span class="muted"><%= stats.bookmarked %> saved</span></div>
+        <div class="bar bar-lg ok mt" style="--v:<%= masteredPct %>%;margin-top:10px"><i></i></div>
+        <div class="row mt">
+          <a class="btn btn-sm btn-primary" href="/flashcards/study?filter=learning"><%- icon("zap") %>Study</a>
+          <a class="btn btn-sm" href="/flashcards?filter=bookmarked"><%- icon("bookmark") %>Saved</a>
+        </div>
+      </section>
+    </div>
+  </div>
+<% } %>

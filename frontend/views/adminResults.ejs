@@ -1,0 +1,22 @@
+<% layout('layouts/boilerplate') %>
+<div class="page-head"><div><h1>Results</h1><p>Pick a test to see rankings, score spread and question difficulty.</p></div></div>
+<% if (!tests.length) { %>
+  <div class="card"><div class="empty"><span class="dot-icon"><%- icon("chart") %></span><h3>No tests yet</h3><p>Results appear once you create a test and students submit it.</p><a class="btn btn-primary btn-sm" href="/admin#create">Create a test</a></div></div>
+<% } else { %>
+  <div class="toolbar mb"><div class="input-icon"><%- icon("search") %><input class="input" type="search" placeholder="Filter tests   ( / )" data-search data-filter="#resRows" data-filter-items="tr"></div></div>
+  <div class="card card-flush"><div class="table-wrap"><table class="t">
+    <thead><tr><th>Test</th><th>Status</th><th>Participation</th><th class="num">Average /20</th><th></th></tr></thead>
+    <tbody id="resRows">
+      <% tests.forEach(t => { const st = t.isEnded ? "Ended" : t.isActive ? "Live" : "Scheduled"; %>
+        <tr>
+          <td><a href="/admin/results/<%= t._id %>" style="color:inherit"><b><%= t.name %></b></a><span class="muted small" style="display:block"><%= t.subject || "General" %> · <%= t.duration %> min · <%= t.sections && t.sections.length ? "Section " + t.sections.join(", ") : "All students" %></span></td>
+          <td><span class="badge <%= st === 'Live' ? 'badge-ok badge-live' : st === 'Ended' ? '' : 'badge-info' %>"><%= st %></span></td>
+          <td style="min-width:180px"><div class="row" style="flex-wrap:nowrap"><div class="bar grow" style="--v:<%= t.participation %>%"><i></i></div><span class="small tnum nowrap"><%= t.attempted %>/<%= t.audience %></span></div></td>
+          <td class="num"><%= t.avg === null ? "—" : fmt.num(t.avg20) + " / 20" %></td>
+          <td class="actions"><a class="btn btn-sm" href="/admin/results/<%= t._id %>">Open <%- icon("chevron-right") %></a>
+            <a class="btn btn-sm btn-ghost btn-icon" href="/admin/results/csv/<%= t._id %>" aria-label="Download CSV" title="CSV"><%- icon("download") %></a></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table></div></div>
+<% } %>

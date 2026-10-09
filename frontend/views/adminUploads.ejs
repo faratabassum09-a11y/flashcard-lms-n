@@ -1,0 +1,27 @@
+<% layout('layouts/boilerplate') %>
+<%
+  const sections = [
+    { title: "Student uploads", icon: "users", list: userUploads, note: "Deleting an upload also deletes the student accounts (and their results) it created." },
+    { title: "Flashcard uploads", icon: "layers", list: flashcardUploads, note: "Deleting an upload removes exactly the flashcards it created." }
+  ];
+%>
+<div class="page-head"><div><h1>Uploads</h1><p>History of every Excel file imported. Remove a whole batch if it was uploaded by mistake.</p></div>
+  <div class="actions"><a class="btn" href="/admin/students"><%- icon("users") %>Upload students</a><a class="btn" href="/admin/flashcards"><%- icon("layers") %>Upload flashcards</a></div></div>
+<div class="stack-lg">
+  <% sections.forEach(s => { %>
+    <section class="card card-flush">
+      <div class="card-head" style="padding:20px 22px 0"><h2><%- icon(s.icon) %><%= s.title %></h2><span class="muted small"><%= s.note %></span></div>
+      <% if (!s.list.length) { %><div class="empty"><p>Nothing uploaded yet.</p></div>
+      <% } else { %><div class="table-wrap" style="margin-top:12px"><table class="t">
+        <thead><tr><th>File</th><% if (s.icon === "layers") { %><th>Subject</th><% } %><th class="num">Rows</th><th>Uploaded</th><th></th></tr></thead>
+        <tbody><% s.list.forEach(u => { %><tr>
+          <td><b><%= u.filename %></b></td>
+          <% if (s.icon === "layers") { %><td><span class="badge badge-accent"><%= u.subject || "—" %></span></td><% } %>
+          <td class="num"><%= Array.isArray(u.rows) ? u.rows.length : 0 %></td>
+          <td class="muted nowrap"><%= fmt.dateTime(u.uploadedAt) %></td>
+          <td class="actions"><a class="btn btn-sm btn-ghost" href="/admin/uploads/view/<%= u._id %>"><%- icon("eye") %>View</a>
+            <form class="inline-form" action="/admin/uploads/delete/<%= u._id %>?_method=DELETE" method="POST" data-confirm="<%= s.note %>" data-confirm-title="Delete this upload?" data-confirm-ok="Delete upload"><button class="btn btn-sm btn-ghost btn-icon" style="color:var(--bad)" aria-label="Delete upload"><%- icon("trash") %></button></form></td>
+        </tr><% }) %></tbody></table></div><% } %>
+    </section>
+  <% }) %>
+</div>
