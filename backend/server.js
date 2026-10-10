@@ -1,7 +1,7 @@
 // backend/server.js
 // Exam schedules are typed as local time; make the server interpret them in the
 // institute's timezone even when hosted on a UTC cloud machine. Override with TZ in .env.
-process.env.TZ = process.env.TZ || "Asia/Kolkata";
+process.env.TZ = process.env.APP_TZ || "Asia/Kolkata";
 // Password hashing (pbkdf2) runs on libuv's thread pool (default 4 threads). A classroom logging in
 // at the same second would queue behind it, so give it more threads.
 process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || "16";
