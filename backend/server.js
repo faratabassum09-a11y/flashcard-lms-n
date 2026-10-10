@@ -249,11 +249,15 @@ app.use((err, req, res, next) => {
   res.status(statusCode).render("error", { title: "Error", err: statusCode >= 500 && isProd ? { statusCode, message: "Something went wrong" } : err });
 });
 
-const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, "0.0.0.0", () => console.log(`Server running on ${PORT} (TZ=${process.env.TZ})`));
-server.keepAliveTimeout = 65 * 1000;
+// Start the HTTP server only when this file is run directly (npm start / node backend/server.js).
+// On Vercel the file is imported by api/index.js, so no port is opened there.
+if (require.main === module) {
+  const PORT = process.env.PORT || 5000;
+  const server = app.listen(PORT, "0.0.0.0", () => console.log(`Server running on ${PORT} (TZ=${process.env.TZ})`));
+  server.keepAliveTimeout = 65 * 1000;
 
-process.on("unhandledRejection", (e) => console.error("Unhandled rejection:", e));
-process.on("SIGTERM", () => server.close(() => mongoose.connection.close().then(() => process.exit(0))));
+  process.on("unhandledRejection", (e) => console.error("Unhandled rejection:", e));
+  process.on("SIGTERM", () => server.close(() => mongoose.connection.close().then(() => process.exit(0))));
+}
 
 module.exports = app;
