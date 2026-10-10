@@ -201,5 +201,4 @@ Excel templates · test options (answer review on/off, "Check match %" on/off).
 - Sessions: removed connect-mongo `crypto` (a synchronous PBKDF2 of ~10 ms ran on EVERY request and froze the server); sessions now live in MongoDB (collection `sessions_v2`) with an in-memory copy in front (`utils/cachedSessionStore.js`). Students sign in once more after this update.
 - `utils/once.js`: 300 simultaneous requests for the same test / card answers / leaderboard share one database read.
 - EJS view cache is always on except when NODE_ENV=development.
-- v6.5 (database round trips): logins, test opens, autosaves, submits and draft clean-up are batched (`utils/batcher.js`, `utils/writes.js`, `models/user.js`) so 300 students cost a few queries, not ~2000. Sessions are saved to MongoDB in the background (memory copy is used meanwhile). The sign-in warms the user cache so the next page needs no lookup.#   f l a s h c a r d - l m s - n  
- 
+- v6.5 (database round trips): logins, test opens, autosaves, submits and draft clean-up are batched (`utils/batcher.js`, `utils/writes.js`, `models/user.js`) so 300 students cost a few queries, not ~2000. Sessions are saved to MongoDB in the background (memory copy is used meanwhile). The sign-in warms the user cache so the next page needs no lookup.
